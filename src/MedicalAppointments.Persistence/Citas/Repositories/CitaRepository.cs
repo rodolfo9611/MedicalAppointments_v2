@@ -23,4 +23,11 @@ public class CitaRepository : ICitaRepository
     {
         return await _context.Citas.FindAsync(id);
     }
+
+    public async Task<long> AddAsync(Cita cita)
+    {
+        await _context.Citas.AddAsync(cita);
+        await _context.SaveChangesAsync();
+        return cita.CitaID;
+    }
 }

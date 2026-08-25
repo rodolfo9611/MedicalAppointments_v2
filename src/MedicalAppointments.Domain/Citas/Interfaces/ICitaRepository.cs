@@ -6,4 +6,5 @@ public interface ICitaRepository
 {
     Task<IEnumerable<Cita>> GetAllAsync();
     Task<Cita?> GetByIdAsync(long id);
+    Task<long> AddAsync(Cita cita);
 }
