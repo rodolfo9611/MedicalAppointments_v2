@@ -14,6 +14,7 @@ public class EstadosCitaController : ControllerBase
         _estadoCitaRepository = estadoCitaRepository;
     }
 
+    /// <summary>Consulta el listado completo de estados de cita.</summary>
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
@@ -21,6 +22,7 @@ public class EstadosCitaController : ControllerBase
         return Ok(estados);
     }
 
+    /// <summary>Consulta un estado de cita especifico por su identificador.</summary>
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {

@@ -1,9 +1,8 @@
 using MedicalAppointments.Domain.Citas.Entities;
+using MedicalAppointments.Domain.Common.Interfaces;
 
 namespace MedicalAppointments.Domain.Citas.Interfaces;
 
-public interface IEstadoCitaRepository
+public interface IEstadoCitaRepository : IGenericRepository<EstadoCita, int>
 {
-    Task<IEnumerable<EstadoCita>> GetAllAsync();
-    Task<EstadoCita?> GetByIdAsync(int id);
 }

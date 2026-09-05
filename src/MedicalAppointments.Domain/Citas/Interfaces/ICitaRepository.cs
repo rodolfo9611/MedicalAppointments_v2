@@ -1,10 +1,8 @@
 using MedicalAppointments.Domain.Citas.Entities;
+using MedicalAppointments.Domain.Common.Interfaces;
 
 namespace MedicalAppointments.Domain.Citas.Interfaces;
 
-public interface ICitaRepository
+public interface ICitaRepository : IGenericRepository<Cita, long>
 {
-    Task<IEnumerable<Cita>> GetAllAsync();
-    Task<Cita?> GetByIdAsync(long id);
-    Task<long> AddAsync(Cita cita);
 }

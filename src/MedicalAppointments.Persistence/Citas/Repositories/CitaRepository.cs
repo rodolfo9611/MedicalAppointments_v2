@@ -1,33 +1,13 @@
 using MedicalAppointments.Domain.Citas.Entities;
 using MedicalAppointments.Domain.Citas.Interfaces;
 using MedicalAppointments.Persistence.Citas.Context;
-using Microsoft.EntityFrameworkCore;
+using MedicalAppointments.Persistence.Common.Repositories;
 
 namespace MedicalAppointments.Persistence.Citas.Repositories;
 
-public class CitaRepository : ICitaRepository
+public class CitaRepository : GenericRepository<Cita, long>, ICitaRepository
 {
-    private readonly CitasDbContext _context;
-
-    public CitaRepository(CitasDbContext context)
+    public CitaRepository(CitasDbContext context) : base(context)
     {
-        _context = context;
-    }
-
-    public async Task<IEnumerable<Cita>> GetAllAsync()
-    {
-        return await _context.Citas.ToListAsync();
-    }
-
-    public async Task<Cita?> GetByIdAsync(long id)
-    {
-        return await _context.Citas.FindAsync(id);
-    }
-
-    public async Task<long> AddAsync(Cita cita)
-    {
-        await _context.Citas.AddAsync(cita);
-        await _context.SaveChangesAsync();
-        return cita.CitaID;
     }
 }
