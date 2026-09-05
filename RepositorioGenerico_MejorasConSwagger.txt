@@ -1,0 +1,120 @@
+MedicalAppointments_v2 - Microservicio de Citas
+Patron Repositorio Generico + Mejoras de Swagger UI
+================================================================
+
+Proyecto: MedicalAppointments_v2
+Repositorio: rodolfo9611/MedicalAppointments_v2
+Objetivo de la practica: Crear la base tecnica de algoritmos para la
+gestion de persistencia con el patron generico, implementando todas
+las operaciones CRUD mediante objetos genericos.
+
+----------------------------------------------------------------
+1. PATRON REPOSITORIO GENERICO (Domain + Persistence)
+----------------------------------------------------------------
+- Se creo IGenericRepository<TEntity, TKey> en
+  MedicalAppointments.Domain/Common/Interfaces, con las 5 operaciones
+  CRUD: GetAllAsync, GetByIdAsync, AddAsync, UpdateAsync, DeleteAsync.
+
+- Se creo GenericRepository<TEntity, TKey> en
+  MedicalAppointments.Persistence/Common/Repositories, implementando
+  esas 5 operaciones sobre un DbSet<TEntity> generico de EF Core. La
+  clave primaria de cada entidad se detecta dinamicamente mediante
+  metadata de EF Core (Context.Model.FindEntityType), sin asumir
+  nombres de propiedad fijos.
+
+- ICitaRepository e IEstadoCitaRepository ahora heredan de
+  IGenericRepository<Cita, long> e IGenericRepository<EstadoCita, int>
+  respectivamente.
+
+- CitaRepository y EstadoCitaRepository ahora heredan de
+  GenericRepository<Cita, long> y GenericRepository<EstadoCita, int>,
+  quedando reducidos unicamente al constructor. Toda la logica CRUD
+  se reutiliza desde la clase generica.
+
+----------------------------------------------------------------
+2. EXPOSICION DE UPDATE Y DELETE EN LA API
+----------------------------------------------------------------
+- Se agregaron los endpoints PUT api/Citas/{id} y DELETE api/Citas/{id}
+  en CitasController, llamando directamente a UpdateAsync y
+  DeleteAsync heredados de GenericRepository. Esto demuestra que
+  ambas operaciones funcionan de fabrica gracias a la herencia
+  generica, sin haber escrito codigo especifico para Cita.
+
+----------------------------------------------------------------
+3. MEJORAS DE VISIBILIDAD EN SWAGGER UI
+----------------------------------------------------------------
+Se agrego documentacion XML (comentarios /// <summary>) a cada metodo
+de CitasController y EstadosCitaController, para que Swagger muestre
+una descripcion clara junto a cada boton de endpoint en lugar de solo
+el verbo HTTP (GET, POST, PUT, DELETE). El objetivo fue mejorar la
+visibilidad para el usuario que prueba la API, dejando explicito que
+hace cada operacion sin depender de traducciones automaticas del
+navegador (que llegaron a mostrar "POST" como "PUBLICACION" y
+"DELETE" como "BORRAR").
+
+Descripciones agregadas:
+- GET    api/Citas         -> "Consulta el listado completo de citas."
+- GET    api/Citas/{id}    -> "Consulta una cita especifica por su identificador."
+- POST   api/Citas         -> "Crea una nueva cita."
+- PUT    api/Citas/{id}    -> "Actualiza los datos de una cita existente."
+- DELETE api/Citas/{id}    -> "Elimina una cita existente."
+- GET    api/EstadosCita       -> "Consulta el listado completo de estados de cita."
+- GET    api/EstadosCita/{id}  -> "Consulta un estado de cita especifico por su identificador."
+
+----------------------------------------------------------------
+4. CAMBIOS DE HERRAMIENTAS EN LA CONSOLA (NuGet)
+----------------------------------------------------------------
+El proyecto usaba originalmente el sistema nativo de documentacion de
+.NET 9 (Microsoft.AspNetCore.OpenApi), que solo genera el documento
+JSON en /openapi/v1.json, sin interfaz visual. Se reemplazo por
+Swashbuckle para tener una pagina interactiva real (Swagger UI).
+
+- INSTALADO: Swashbuckle.AspNetCore (version 10.2.3), en el proyecto
+  MedicalAppointments.Api, via:
+  Install-Package Swashbuckle.AspNetCore -ProjectName MedicalAppointments.Api
+
+  Este paquete trajo consigo, como dependencias:
+  Swashbuckle.AspNetCore.Swagger, Swashbuckle.AspNetCore.SwaggerGen,
+  Swashbuckle.AspNetCore.SwaggerUI, y actualizo Microsoft.OpenApi de
+  la version 1.6.17 a la 2.7.5.
+
+- DESINSTALADO: Microsoft.AspNetCore.OpenApi, del mismo proyecto, via:
+  Uninstall-Package Microsoft.AspNetCore.OpenApi -ProjectName MedicalAppointments.Api
+
+  Motivo: ambos paquetes dependian de versiones incompatibles de
+  Microsoft.OpenApi y no podian convivir; al intentar ejecutar la
+  aplicacion con los dos instalados a la vez, se producia una
+  excepcion en tiempo de ejecucion
+  (System.Reflection.ReflectionTypeLoadException).
+
+- Se agrego <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  y <NoWarn>$(NoWarn);1591</NoWarn> en MedicalAppointments.Api.csproj,
+  para que el compilador genere el archivo XML de documentacion que
+  Swagger UI usa para mostrar las descripciones de cada endpoint.
+
+----------------------------------------------------------------
+5. VERIFICACION Y PRUEBAS
+----------------------------------------------------------------
+- Compilacion de la solucion completa: 0 errores.
+- Swagger UI accesible en https://localhost:5001/swagger/index.html,
+  mostrando los 7 endpoints (5 de Citas, 2 de EstadosCita) con sus
+  descripciones.
+- POST api/Citas probado exitosamente en multiples ocasiones (8 citas
+  creadas), confirmando que AddAsync generico detecta correctamente
+  la clave primaria (CitaID) mediante metadata de EF Core.
+- GET api/Citas/{id} probado exitosamente sobre citas existentes.
+
+----------------------------------------------------------------
+6. CONTROL DE VERSIONES
+----------------------------------------------------------------
+- Commit: "Implementa patron repositorio generico
+  (IGenericRepository/GenericRepository) para CRUD sobre Cita y
+  EstadoCita; agrega Swagger UI, Update/Delete en CitasController y
+  documentacion XML de endpoints"
+- Sincronizado con git pull --rebase origin main antes del push, sin
+  conflictos.
+- Push realizado a rodolfo9611/MedicalAppointments_v2, rama main.
+
+================================================================
+Fin del documento
+================================================================
