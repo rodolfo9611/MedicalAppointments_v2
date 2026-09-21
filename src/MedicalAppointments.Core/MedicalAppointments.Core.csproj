@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MedicalAppointments.Domain\MedicalAppointments.Domain.csproj" />
+    <ProjectReference Include="..\..\nuggets\Nuget.Persistence\Nuget.Persistence.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

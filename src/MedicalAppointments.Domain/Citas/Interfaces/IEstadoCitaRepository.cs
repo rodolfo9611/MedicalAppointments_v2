@@ -1,8 +1,8 @@
-using MedicalAppointments.Domain.Citas.Entities;
-using MedicalAppointments.Domain.Common.Interfaces;
+﻿using MedicalAppointments.Domain.Citas.Entities;
+using Nuget.Persistence.Abstractions;
 
 namespace MedicalAppointments.Domain.Citas.Interfaces;
 
-public interface IEstadoCitaRepository : IGenericRepository<EstadoCita, int>
+public interface IEstadoCitaRepository : IRepository<EstadoCita, int>
 {
 }

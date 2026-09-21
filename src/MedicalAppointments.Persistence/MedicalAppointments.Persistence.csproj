@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MedicalAppointments.Core\MedicalAppointments.Core.csproj" />
+    <ProjectReference Include="..\..\nuggets\Nuget.Persistence\Nuget.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

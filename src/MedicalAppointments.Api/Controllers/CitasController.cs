@@ -1,6 +1,7 @@
-using MediatR;
+﻿using MediatR;
 using MedicalAppointments.Core.Citas.Commands.CreateCita;
 using MedicalAppointments.Core.Citas.Queries.GetCitaById;
+using MedicalAppointments.Core.Citas.Queries.GetCitasPaged;
 using MedicalAppointments.Domain.Citas.Entities;
 using MedicalAppointments.Domain.Citas.Interfaces;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,14 @@ public class CitasController : ControllerBase
     {
         var citas = await _citaRepository.GetAllAsync();
         return Ok(citas);
+    }
+
+    /// <summary>Consulta citas con paginacion generica y filtro dinamico.</summary>
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] GetCitasPagedQuery query)
+    {
+        var result = await _mediator.Send(query);
+        return Ok(result);
     }
 
     /// <summary>Consulta una cita especifica por su identificador.</summary>
