@@ -1,4 +1,6 @@
-﻿using System.Linq.Expressions;
+using System.ComponentModel.DataAnnotations;
+using System.Linq.Dynamic.Core;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Nuget.Persistence.Abstractions;
 
@@ -17,18 +19,31 @@ public class Repository<TEntity, TKey> : IRepository<TEntity, TKey>
     }
 
     protected virtual IQueryable<TEntity> Query(bool asNoTracking = true)
-    {
-        return asNoTracking ? DbSet.AsNoTracking() : DbSet.AsQueryable();
-    }
+        => asNoTracking ? DbSet.AsNoTracking() : DbSet.AsQueryable();
 
-    public virtual async Task<IEnumerable<TEntity>> GetAllAsync()
+    public virtual async Task<IEnumerable<TEntity>> GetAllAsync(
+        bool asNoTracking = true,
+        params Expression<Func<TEntity, object>>[] includes)
     {
-        return await DbSet.ToListAsync();
+        var query = ApplyIncludes(Query(asNoTracking), includes);
+        return await query.ToListAsync();
     }
 
     public virtual async Task<TEntity?> GetByIdAsync(TKey id)
     {
         return await DbSet.FindAsync(id);
+    }
+
+    public virtual async Task<TEntity?> GetOneByAsync(
+        Expression<Func<TEntity, bool>> filter,
+        bool asNoTracking = true,
+        CancellationToken cancellationToken = default,
+        params Expression<Func<TEntity, object>>[] includes)
+    {
+        if (filter == null) throw new ArgumentNullException(nameof(filter));
+
+        var query = ApplyIncludes(Query(asNoTracking), includes);
+        return await query.FirstOrDefaultAsync(filter, cancellationToken);
     }
 
     public virtual async Task<TKey> AddAsync(TEntity entity)
@@ -46,6 +61,19 @@ public class Repository<TEntity, TKey> : IRepository<TEntity, TKey>
         return (TKey)keyValue!;
     }
 
+    public virtual async Task AddRangeAsync(
+        IEnumerable<TEntity> entities,
+        CancellationToken cancellationToken = default)
+    {
+        if (entities == null) throw new ArgumentNullException(nameof(entities));
+
+        var items = entities as ICollection<TEntity> ?? entities.ToList();
+        if (items.Count == 0) return;
+
+        await DbSet.AddRangeAsync(items, cancellationToken);
+        await Context.SaveChangesAsync(cancellationToken);
+    }
+
     public virtual async Task UpdateAsync(TEntity entity)
     {
         DbSet.Update(entity);
@@ -58,11 +86,12 @@ public class Repository<TEntity, TKey> : IRepository<TEntity, TKey>
         await Context.SaveChangesAsync();
     }
 
-    public virtual async Task<PagedResult<TEntity>> GetPagedAsync(
+    public virtual async Task<Abstractions.PagedResult<TEntity>> GetPagedAsync(
         int pageNumber,
         int pageSize,
         Expression<Func<TEntity, bool>>? filter = null,
-        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderBy = null,
+        string? orderBy = null,
+        Func<IQueryable<TEntity>, IOrderedQueryable<TEntity>>? orderByExpression = null,
         bool asNoTracking = true,
         bool splitQuery = false,
         CancellationToken cancellationToken = default,
@@ -75,16 +104,29 @@ public class Repository<TEntity, TKey> : IRepository<TEntity, TKey>
         if (filter != null) query = query.Where(filter);
         if (splitQuery) query = query.AsSplitQuery();
 
-        // Count against the filtered (but not yet ordered/paged) query — computed
-        // with CountAsync so it doesn't block a thread pool thread synchronously.
         int totalRecords = await query.CountAsync(cancellationToken);
 
-        query = orderBy != null ? orderBy(query) : query;
+        if (!string.IsNullOrWhiteSpace(orderBy))
+        {
+            try
+            {
+                query = query.OrderBy(orderBy);
+            }
+            catch
+            {
+                throw new ValidationException("orderBy expression invalid");
+            }
+        }
+        else if (orderByExpression != null)
+        {
+            query = orderByExpression(query);
+        }
+
         query = query.Skip((pageNumber - 1) * pageSize).Take(pageSize);
 
         var data = await query.ToListAsync(cancellationToken);
 
-        return new PagedResult<TEntity>
+        return new Abstractions.PagedResult<TEntity>
         {
             Data = data,
             TotalRecords = totalRecords,
@@ -93,7 +135,9 @@ public class Repository<TEntity, TKey> : IRepository<TEntity, TKey>
         };
     }
 
-    private static IQueryable<TEntity> ApplyIncludes(IQueryable<TEntity> query, Expression<Func<TEntity, object>>[] includes)
+    private static IQueryable<TEntity> ApplyIncludes(
+        IQueryable<TEntity> query,
+        Expression<Func<TEntity, object>>[] includes)
     {
         if (includes != null)
         {

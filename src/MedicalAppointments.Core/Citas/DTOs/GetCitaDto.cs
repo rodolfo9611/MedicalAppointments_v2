@@ -1,4 +1,4 @@
-﻿namespace MedicalAppointments.Core.Citas.DTOs;
+namespace MedicalAppointments.Core.Citas.DTOs;
 
 public class GetCitaDto
 {

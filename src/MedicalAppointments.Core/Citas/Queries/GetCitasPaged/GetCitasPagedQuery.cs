@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using MedicalAppointments.Core.Citas.DTOs;
 using Nuget.Persistence.Common;
 

@@ -1,10 +1,13 @@
-﻿using MediatR;
+using MediatR;
 using MedicalAppointments.Core.Citas.Commands.CreateCita;
+using MedicalAppointments.Core.Citas.Commands.CreateCitas;
 using MedicalAppointments.Core.Citas.Queries.GetCitaById;
+using MedicalAppointments.Core.Citas.Queries.GetCitaOneBy;
 using MedicalAppointments.Core.Citas.Queries.GetCitasPaged;
 using MedicalAppointments.Domain.Citas.Entities;
 using MedicalAppointments.Domain.Citas.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Nuget.Persistence.Common;
 
 namespace MedicalAppointments.Api.Controllers;
 
@@ -29,14 +32,6 @@ public class CitasController : ControllerBase
         return Ok(citas);
     }
 
-    /// <summary>Consulta citas con paginacion generica y filtro dinamico.</summary>
-    [HttpGet("paged")]
-    public async Task<IActionResult> GetPaged([FromQuery] GetCitasPagedQuery query)
-    {
-        var result = await _mediator.Send(query);
-        return Ok(result);
-    }
-
     /// <summary>Consulta una cita especifica por su identificador.</summary>
     [HttpGet("{id:long}")]
     public async Task<IActionResult> GetById(long id)
@@ -48,12 +43,54 @@ public class CitasController : ControllerBase
         return Ok(cita);
     }
 
+    /// <summary>Consulta citas con paginacion generica, filtro dinamico y OrderBy dinamico por cualquier campo.</summary>
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] GetCitasPagedQuery query)
+    {
+        if (query.PageNumber < 1 || query.PageSize < 1)
+            return BadRequest(new HttpResponse<object> { Success = false, Message = "pageNumber y pageSize deben ser mayores o iguales a 1." });
+
+        var result = await _mediator.Send(query);
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    /// <summary>Consulta una cita con filtrado generico tipo expresion (GetOneBy).</summary>
+    [HttpGet("one")]
+    public async Task<IActionResult> GetOneBy([FromQuery] string filter)
+    {
+        if (string.IsNullOrWhiteSpace(filter))
+            return BadRequest(new HttpResponse<object> { Success = false, Message = "El filtro es obligatorio." });
+
+        var result = await _mediator.Send(new GetCitaOneByQuery(filter));
+        if (!result.Success)
+            return BadRequest(result);
+
+        if (result.Data is null)
+            return NotFound(result);
+
+        return Ok(result);
+    }
+
     /// <summary>Crea una nueva cita.</summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCitaCommand command)
     {
         var newId = await _mediator.Send(command);
         return CreatedAtAction(nameof(GetById), new { id = newId }, new { CitaID = newId });
+    }
+
+    /// <summary>Crea un rango de citas a partir de una lista, con un unico guardado (AddRange).</summary>
+    [HttpPost("range")]
+    public async Task<IActionResult> CreateRange([FromBody] CreateCitasCommand command)
+    {
+        if (command.Citas is null || command.Citas.Count == 0)
+            return BadRequest(new HttpResponse<object> { Success = false, Message = "La lista de citas no puede estar vacia." });
+
+        var total = await _mediator.Send(command);
+        return Ok(new HttpResponse<int> { Success = true, Message = "Rango de citas guardado correctamente.", Data = total });
     }
 
     /// <summary>Actualiza los datos de una cita existente.</summary>

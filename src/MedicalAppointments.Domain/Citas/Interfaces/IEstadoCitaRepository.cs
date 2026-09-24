@@ -1,4 +1,4 @@
-﻿using MedicalAppointments.Domain.Citas.Entities;
+using MedicalAppointments.Domain.Citas.Entities;
 using Nuget.Persistence.Abstractions;
 
 namespace MedicalAppointments.Domain.Citas.Interfaces;

@@ -1,9 +1,17 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <!-- Empaquetado como NuGet para distribucion y reutilizacion entre microservicios -->
+    <PackageId>Nuget.Persistence</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>rodolfo9611</Authors>
+    <Description>Biblioteca de clases independiente de persistencia generica, reutilizable por cualquier microservicio a traves de un unico punto de acceso a datos.</Description>
+    <IsPackable>true</IsPackable>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>

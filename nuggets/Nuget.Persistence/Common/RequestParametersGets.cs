@@ -1,8 +1,9 @@
-﻿namespace Nuget.Persistence.Common;
+namespace Nuget.Persistence.Common;
 
 public class RequestParametersGets
 {
     public int PageNumber { get; set; } = 1;
     public int PageSize { get; set; } = 10;
     public string? Filter { get; set; }
+    public string? OrderBy { get; set; }
 }

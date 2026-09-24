@@ -1,166 +1,155 @@
-﻿MedicalAppointments_v2 - Microservicio de Citas
-Persistencia Generica Independiente, Paginacion y Filtro Dinamico
+MedicalAppointments_v2 - Microservicio de Citas y Pacientes
+Persistencia Generica Independiente, Paginacion, Filtro Dinamico y Ordenamiento Dinamico
 ================================================================
 
 Proyecto: MedicalAppointments_v2
 Repositorio: rodolfo9611/MedicalAppointments_v2
-Fecha: 21 de septiembre de 2026
+Fecha: 23 de septiembre de 2026
 Objetivo de la practica:
 Crear una biblioteca de clases independiente enfocada en persistencia generica
-(Nuget.Persistence), desacoplada de los microservicios, e integrar la paginacion
-generica (GetPagedAsync) y el filtro dinamico con expresiones lambda en tiempo
-de ejecucion (System.Linq.Dynamic.Core) mediante CQRS con MediatR.
+(Nuget.Persistence), desacoplada de los microservicios, y reutilizarla en
+diferentes microservicios (Citas y Pacientes) como un unico punto de acceso a
+datos. La biblioteca incluye paginacion generica (GetPagedAsync), filtrado
+dinamico con expresiones lambda en tiempo de ejecucion (System.Linq.Dynamic.Core),
+consulta GetOneBy con filtrado generico y guardado por rango (List) de objetos.
 
 ----------------------------------------------------------------
-1. ANTECEDENTES Y OBSERVACIONES DEL DOCENTE
+1. REQUERIMIENTO DEL DOCENTE
 ----------------------------------------------------------------
-En revisiones anteriores, la persistencia generica se habia definido dentro
-del propio microservicio (en las capas MedicalAppointments.Domain y
-MedicalAppointments.Persistence). Segun la retroalimentacion recibida y lo
-expuesto por el docente en clase, el requerimiento formal exige la creacion de
-una Biblioteca de Clases (Class Library) independiente en una ubicacion
-compartida (nuggets/), simulando un paquete reutilizable por cualquier
-microservicio sin depender de entidades particulares.
+El docente pidio construir una biblioteca de clases (Class Library) independiente
+con metodos genericos, que se herede/reutilice entre diferentes microservicios,
+evitando repetir la misma logica de persistencia en cada uno. La mayoria lo habia
+creado dentro de un unico microservicio, que es lo que se corregio en esta
+practica. La biblioteca tambien debe poder empaquetarse como NuGet para su
+distribucion y reutilizacion.
 
 ----------------------------------------------------------------
 2. NUEVA BIBLIOTECA DE CLASES: Nuget.Persistence
 ----------------------------------------------------------------
 Se creo el proyecto de biblioteca de clases .NET 9 en nuggets/Nuget.Persistence:
 - nuggets/Nuget.Persistence/Nuget.Persistence.csproj
-- Paquetes NuGet agregados:
+- Paquetes NuGet:
   * Microsoft.EntityFrameworkCore (9.0.0)
   * Microsoft.EntityFrameworkCore.Relational (9.0.0) - Requerido para AsSplitQuery
   * System.Linq.Dynamic.Core (1.7.4) - Requerido para DynamicExpressionParser
+- Configurado como empaquetable (PackageId=Nuget.Persistence, Version=1.0.0,
+  IsPackable=true) para poder generar el .nupkg con dotnet pack.
 
-Estructura interna organizada segun los lineamientos de la catedra:
-
-A) Abstractions (Abstracciones / Interfaces y Contratos):
+Estructura interna:
+A) Abstractions:
    - IRepository<TEntity, TKey>: Contrato generico CRUD (GetAllAsync,
-     GetByIdAsync, AddAsync, UpdateAsync, DeleteAsync) enriquecido con
-     el metodo de paginacion GetPagedAsync.
-   - PagedResult<TEntity>: Modelo contenedor del resultado paginado que
-     devuelve Data (IEnumerable), TotalRecords, PageSize, CurrentPage y
-     TotalPage.
+     GetByIdAsync, AddAsync, UpdateAsync, DeleteAsync) enriquecido con:
+     * GetPagedAsync (paginacion generica)
+     * GetOneByAsync (consulta por filtro generico)
+     * AddRangeAsync (guardado por rango)
+   - PagedResult<TEntity>: Contenedor del resultado paginado (Data, TotalRecords,
+     PageSize, CurrentPage, TotalPage).
 
-B) Implementations (Implementaciones concretas con EF Core):
+B) Implementations:
    - Repository<TEntity, TKey>: Implementacion sobre DbContext y DbSet<TEntity>.
-     * Logica de obtencion dinamica de clave primaria mediante metadata de EF Core.
-     * Metodo GetPagedAsync: Aplica includes (ApplyIncludes), evalua el filtro
-       Where, aplica AsSplitQuery si se solicita, calcula el total de registros
-       mediante CountAsync (sin bloqueo sincrono), aplica el ordenamiento orderBy,
-       ejecuta Skip/Take segun pageNumber/pageSize y materializa con ToListAsync.
+     * Obtencion dinamica de la clave primaria mediante metadata de EF Core.
+     * GetPagedAsync: aplica includes, evalua el filtro Where, aplica
+       AsSplitQuery si se solicita, calcula TotalRecords con CountAsync,
+       aplica el ordenamiento (OrderBy dinamico por campo o lambda) y ejecuta
+       Skip/Take para materializar la pagina.
+     * GetOneByAsync: aplica includes mas filtro y retorna FirstOrDefaultAsync.
+     * AddRangeAsync: usa DbSet.AddRangeAsync y un unico SaveChangesAsync.
 
-C) Common (Modelos comunes y soporte de filtros dinamicos):
-   - Filter: Clase estatica con el metodo FromStringExpression<TModel>(query),
-     el cual utiliza DynamicExpressionParser.ParseLambda de System.Linq.Dynamic.Core
-     para interpretar condiciones en cadenas (ej: "EstadoCitaID == 1" o
-     "Motivo.Contains(\"Consulta\")") y convertirlas en Expression<Func<TModel, bool>>.
-   - PagedDto<TEntity>: Objeto generico de transferencia para respuestas paginadas.
-   - HttpResponse<T>: Envoltorio estandar para respuestas HTTP (Success, Message, Data).
-   - RequestParametersGets: Clase base con parametros de consulta paginada
-     (PageNumber, PageSize, Filter).
-
-----------------------------------------------------------------
-3. ACOPLAMIENTO AL MICROSERVICIO DE CITAS
-----------------------------------------------------------------
-Se actualizaron las capas del microservicio para consumir la nueva biblioteca:
-
-A) MedicalAppointments.Domain:
-   - Se agrego ProjectReference hacia Nuget.Persistence.csproj.
-   - ICitaRepository hereda de IRepository<Cita, long>.
-   - IEstadoCitaRepository hereda de IRepository<EstadoCita, int>.
-   - Se removio IGenericRepository.cs interno.
-
-B) MedicalAppointments.Persistence:
-   - Se agrego ProjectReference hacia Nuget.Persistence.csproj.
-   - CitaRepository hereda de Repository<Cita, long> e implementa ICitaRepository.
-   - EstadoCitaRepository hereda de Repository<EstadoCita, int> e implementa IEstadoCitaRepository.
-   - Se removio GenericRepository.cs interno.
-
-C) MedicalAppointments.Core (Capa de Aplicacion / CQRS con MediatR):
-   - Se agrego ProjectReference hacia Nuget.Persistence.csproj.
-   - DTO creado: GetCitaDto (CitaID, PacienteID, MedicoID, EspecialidadID,
-     ConsultorioID, EstadoCitaID, FechaHoraInicio, FechaHoraFin, Motivo,
-     Observaciones, UsuarioCreacionID, FechaCreacion).
-   - Query creada: GetCitasPagedQuery, heredando de RequestParametersGets e
-     implementando IRequest<HttpResponse<PagedDto<List<GetCitaDto>>>>.
-   - Handler creado: GetCitasPagedQueryHandler. Toma la cadena request.Filter,
-     la transforma a expresion con Filter.FromStringExpression<Cita>, invoca
-     _citaRepository.GetPagedAsync(...), mapea a GetCitaDto y retorna el
-     HttpResponse con PagedDto.
-
-D) MedicalAppointments.Api (Capa de Presentacion / Controladores):
-   - CitasController: Se incorporo el nuevo endpoint:
-     [HttpGet("paged")]
-     public async Task<IActionResult> GetPaged([FromQuery] GetCitasPagedQuery query)
-     {
-         var result = await _mediator.Send(query);
-         return Ok(result);
-     }
-   - Documentacion XML agregada para visualizacion clara en Swagger UI:
-     "Consulta citas con paginacion generica y filtro dinamico."
+C) Common:
+   - Filter: Clase estatica con FromStringExpression<TModel>(query), que usa
+     DynamicExpressionParser.ParseLambda para interpretar condiciones en
+     cadenas (ej: "EstadoCitaID == 1" o "Motivo.Contains(\"Consulta\")").
+   - PagedDto<TEntity>: Objeto generico de transferencia para respuestas
+     paginadas.
+   - HttpResponse<T>: Envoltorio estandar para respuestas HTTP (Success,
+     Message, Data).
+   - RequestParametersGets: Clase base con PageNumber, PageSize, Filter y
+     OrderBy.
 
 ----------------------------------------------------------------
-4. EJEMPLOS DE USO DEL ENDPOINT PAGINADO Y FILTRO DINAMICO
+3. ESPECIFICACIONES IMPLEMENTADAS
 ----------------------------------------------------------------
-El endpoint expuesto en la API permite las siguientes consultas:
+1) GetOneBy con filtrado generico (similar a la paginacion):
+   - Firma: GetOneByAsync(Expression<Func<TEntity,bool>> filter,
+     asNoTracking, cancellationToken, params includes).
+   - El handler/controlador convierte la cadena de filtro con
+     Filter.FromStringExpression<TEntity> y retorna el primer resultado.
+   - Endpoints: GET api/Citas/one?filter=... y GET api/Pacientes/one?filter=...
 
-- Consulta paginada basica:
-  GET https://localhost:5001/api/Citas/paged?pageNumber=1&pageSize=5
+2) Paginacion generica con OrderBy dinamico por cualquier campo:
+   - GetPagedAsync acepta el parametro dinamico orderBy (string) que ordena
+     por cualquier propiedad, con direccion opcional (asc/desc), mediante
+     System.Linq.Dynamic.Core. Se conserva la variante por lambda
+     (orderByExpression) como alternativa tipada.
+   - RequestParametersGets incluye la propiedad OrderBy.
+   - Endpoints: GET api/Citas/paged?orderBy=FechaHoraInicio desc y
+     GET api/Pacientes/paged?orderBy=Nombre desc.
 
-- Consulta paginada con filtro numerico:
-  GET https://localhost:5001/api/Citas/paged?pageNumber=1&pageSize=5&filter=EstadoCitaID == 1
-
-- Consulta paginada con filtro por texto:
-  GET https://localhost:5001/api/Citas/paged?pageNumber=1&pageSize=5&filter=Motivo.Contains("Consulta")
-
-- Consulta paginada combinada:
-  GET https://localhost:5001/api/Citas/paged?pageNumber=1&pageSize=10&filter=PacienteID == 1 and EstadoCitaID != 3
-
-----------------------------------------------------------------
-5. RESULTADOS DE COMPILACION Y VERIFICACION
-----------------------------------------------------------------
-- Compilacion de la solucion completa (MedicalAppointments.sln):
-  Proyectos compilados:
-  * Nuget.Persistence -> OK (0 errores, 0 advertencias)
-  * MedicalAppointments.Domain -> OK (0 errores, 0 advertencias)
-  * MedicalAppointments.Core -> OK (0 errores, 0 advertencias)
-  * MedicalAppointments.Infrastructure -> OK (0 errores, 0 advertencias)
-  * MedicalAppointments.Persistence -> OK (0 errores, 0 advertencias)
-  * MedicalAppointments.Api -> OK (0 errores, 0 advertencias)
-- Estado: Compilacion 100% exitosa sin errores ni conflictos de referencias.
+3) Guardado por rango de valores (List):
+   - Firma: AddRangeAsync(IEnumerable<TEntity> entities, cancellationToken).
+   - Persiste una lista de objetos en una sola operacion SaveChangesAsync.
+   - Endpoints: POST api/Citas/range y POST api/Pacientes/range con List
+     de entidades.
 
 ----------------------------------------------------------------
-6. RESUMEN DE ARCHIVOS MODIFICADOS Y NUEVOS
+4. INTEGRACION EN LOS MICROSERVICIOS
 ----------------------------------------------------------------
-Nuevos:
-- nuggets/Nuget.Persistence/Nuget.Persistence.csproj
-- nuggets/Nuget.Persistence/Abstractions/IRepository.cs
-- nuggets/Nuget.Persistence/Abstractions/PagedResult.cs
-- nuggets/Nuget.Persistence/Implementations/Repository.cs
-- nuggets/Nuget.Persistence/Common/Filter.cs
-- nuggets/Nuget.Persistence/Common/PagedDto.cs
-- nuggets/Nuget.Persistence/Common/HttpResponse.cs
-- nuggets/Nuget.Persistence/Common/RequestParametersGets.cs
-- src/MedicalAppointments.Core/Citas/DTOs/GetCitaDto.cs
-- src/MedicalAppointments.Core/Citas/Queries/GetCitasPaged/GetCitasPagedQuery.cs
-- src/MedicalAppointments.Core/Citas/Queries/GetCitasPaged/GetCitasPagedQueryHandler.cs
-- PersistenciaGenerica_Paginacion_FiltroDinamico.txt
+La misma biblioteca se agrego por ProjectReference desde nuggets/ a DOS
+microservicios (configuracion de BD distinta, acceso a datos unico):
 
-Modificados:
-- MedicalAppointments.sln (incorporacion del proyecto Nuget.Persistence)
-- src/MedicalAppointments.Domain/MedicalAppointments.Domain.csproj
-- src/MedicalAppointments.Domain/Citas/Interfaces/ICitaRepository.cs
-- src/MedicalAppointments.Domain/Citas/Interfaces/IEstadoCitaRepository.cs
-- src/MedicalAppointments.Persistence/MedicalAppointments.Persistence.csproj
-- src/MedicalAppointments.Persistence/Citas/Repositories/CitaRepository.cs
-- src/MedicalAppointments.Persistence/Citas/Repositories/EstadoCitaRepository.cs
-- src/MedicalAppointments.Core/MedicalAppointments.Core.csproj
-- src/MedicalAppointments.Api/Controllers/CitasController.cs
+A) Microservicio de Citas (MedicalAppointments.sln):
+   - MedicalAppointments.Domain: ICitaRepository : IRepository<Cita,long> e
+     IEstadoCitaRepository : IRepository<EstadoCita,int>. Se elimino la
+     IGenericRepository interna.
+   - MedicalAppointments.Persistence: CitaRepository y EstadoCitaRepository
+     heredan de Repository<...>. Se elimino la GenericRepository interna.
+   - MedicalAppointments.Core (CQRS con MediatR):
+     * GetCitaDto.
+     * GetCitasPagedQuery (+Handler): usa Filter y OrderBy dinamico.
+     * GetCitaOneByQuery (+Handler): usa GetOneByAsync con filtro generico.
+     * CreateCitasCommand (+Handler): usa AddRangeAsync.
+   - MedicalAppointments.Api: endpoints paged, one y range con documentacion
+     XML para Swagger. Configuracion de BD: SQL Server (connection string
+     CitasDB).
 
-Eliminados:
-- src/MedicalAppointments.Domain/Common/Interfaces/IGenericRepository.cs
-- src/MedicalAppointments.Persistence/Common/Repositories/GenericRepository.cs
+B) Microservicio de Pacientes (MicroservicioPacientes.sln):
+   - MicroservicioPacientes.Application: IPacienteRepository : IRepository<Paciente,int>.
+   - MicroservicioPacientes.Infrastructure: PacienteRepository hereda de
+     Repository<Paciente,int> (solo constructor).
+   - MicroservicioPacientes.Api: PacientesController usa los metodos
+     genericos y expone paged, one y range. Configuracion de BD: InMemory
+     (PacientesDb).
+
+----------------------------------------------------------------
+5. MANEJO DE ERRORES
+----------------------------------------------------------------
+- Filtro u OrderBy invalido: Filter.FromStringExpression y el OrderBy dinamico
+  lanzan ValidationException; los handlers/controladores la capturan y
+  responden HTTP 400 BadRequest con HttpResponse (Success=false, Message).
+- Parametros de paginacion invalidos (pageNumber/pageSize < 1): HTTP 400.
+
+----------------------------------------------------------------
+6. RESULTADOS DE COMPILACION Y VERIFICACION
+----------------------------------------------------------------
+- Compilacion de MedicalAppointments.sln: 0 errores, 0 advertencias.
+- Compilacion de MicroservicioPacientes.sln: 0 errores, 0 advertencias.
+- Pruebas en MicroservicioPacientes (BD InMemory):
+  * GET /api/Pacientes/paged                     -> OK (Data + totalRecords).
+  * .../paged?filter=DocumentoIdentidad == "12345678-9" -> OK.
+  * .../paged?filter=Nombre.Contains("Carl")     -> OK.
+  * .../paged?filter=Id == 999                   -> OK (0 registros).
+  * .../paged?orderBy=Nombre desc                -> OK (OrderBy dinamico).
+  * .../paged?filter=NoExiste == 1               -> HTTP 400.
+  * .../paged?orderBy=NoExiste                   -> HTTP 400.
+  * .../paged?pageNumber=0                       -> HTTP 400.
+  * GET /api/Pacientes/one?filter=Id == 1        -> OK.
+
+----------------------------------------------------------------
+7. LIMPIEZA DEL REPOSITORIO
+----------------------------------------------------------------
+- Eliminado el duplicado anidado MicroservicioPacientes/ (copia con su propio
+  .sln) y la carpeta files/ (copias antiguas), dejando una estructura limpia
+  con la biblioteca compartida en nuggets/ y ambos microservicios referenciandola.
 
 ================================================================
 Fin del documento

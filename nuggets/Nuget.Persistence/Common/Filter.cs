@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.Linq.Dynamic.Core;
 using System.Linq.Expressions;
 
@@ -11,7 +11,10 @@ public static class Filter
         try
         {
             ParameterExpression parameterExpression = Expression.Parameter(typeof(TModel), parameter);
-            return (Expression<Func<TModel, bool>>)DynamicExpressionParser.ParseLambda(new ParameterExpression[1] { parameterExpression }, null, query);
+            return (Expression<Func<TModel, bool>>)DynamicExpressionParser.ParseLambda(
+                new ParameterExpression[1] { parameterExpression },
+                null,
+                query);
         }
         catch
         {

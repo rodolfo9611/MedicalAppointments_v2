@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MicroservicioPacientes.Domain\MicroservicioPacientes.Domain.csproj" />
+    <ProjectReference Include="..\nuggets\Nuget.Persistence\Nuget.Persistence.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\MicroservicioPacientes.Infrastructure\MicroservicioPacientes.Infrastructure.csproj" />
     <ProjectReference Include="..\MicroservicioPacientes.Application\MicroservicioPacientes.Application.csproj" />
+    <ProjectReference Include="..\nuggets\Nuget.Persistence\Nuget.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

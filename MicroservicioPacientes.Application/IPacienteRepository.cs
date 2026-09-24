@@ -1,10 +1,8 @@
 using MicroservicioPacientes.Domain;
+using Nuget.Persistence.Abstractions;
 
 namespace MicroservicioPacientes.Application;
 
-public interface IPacienteRepository
+public interface IPacienteRepository : IRepository<Paciente, int>
 {
-    Task<IEnumerable<Paciente>> ObtenerTodosAsync();
-    Task<Paciente?> ObtenerPorIdAsync(int id);
-    Task AgregarAsync(Paciente paciente);
 }
