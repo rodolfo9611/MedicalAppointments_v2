@@ -1,5 +1,4 @@
-using MediatR;
-using MedicalAppointments.Core.Citas.Queries.GetCitaById;
+using MedicalAppointments.Core;
 using MedicalAppointments.Persistence.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,8 +12,7 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddControllers();
 builder.Services.AddPersistence(builder.Configuration);
-builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(typeof(GetCitaByIdQuery).Assembly));
+builder.Services.AddCore(builder.Configuration);
 
 var app = builder.Build();
 

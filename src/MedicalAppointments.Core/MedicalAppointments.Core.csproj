@@ -2,6 +2,11 @@
 
   <ItemGroup>
     <PackageReference Include="MediatR" Version="12.5.0" />
+    <!-- Enlaza las secciones de appsettings.json (Pacientes) con IOptions&lt;T&gt; -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.0" />
+    <!-- Newtonsoft: los DTOs que cruzan la frontera HTTP usan [JsonProperty] -->
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
   <ItemGroup>

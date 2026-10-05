@@ -1,8 +1,10 @@
+using System.ComponentModel.DataAnnotations;
 using MediatR;
 using MedicalAppointments.Core.Citas.Commands.CreateCita;
 using MedicalAppointments.Core.Citas.Commands.CreateCitas;
 using MedicalAppointments.Core.Citas.Queries.GetCitaById;
 using MedicalAppointments.Core.Citas.Queries.GetCitaOneBy;
+using MedicalAppointments.Core.Citas.Queries.GetCitaPaciente;
 using MedicalAppointments.Core.Citas.Queries.GetCitasPaged;
 using MedicalAppointments.Domain.Citas.Entities;
 using MedicalAppointments.Domain.Citas.Interfaces;
@@ -72,6 +74,26 @@ public class CitasController : ControllerBase
             return NotFound(result);
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Consulta los datos del paciente de una cita en el microservicio de Pacientes, usando la libreria NugetPackage_Rest.
+    /// </summary>
+    [HttpGet("{id:long}/paciente")]
+    public async Task<IActionResult> GetPacienteDeCita(long id)
+    {
+        try
+        {
+            var result = await _mediator.Send(new GetCitaPacienteQuery(id));
+            if (result is null)
+                return NotFound(new HttpResponse<object> { Success = false, Message = "La cita o el paciente no existen." });
+
+            return Ok(result);
+        }
+        catch (ValidationException ex)
+        {
+            return BadRequest(new HttpResponse<object> { Success = false, Message = ex.Message });
+        }
     }
 
     /// <summary>Crea una nueva cita.</summary>
