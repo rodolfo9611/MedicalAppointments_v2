@@ -3,13 +3,10 @@
   <ItemGroup>
     <ProjectReference Include="..\MedicalAppointments.Core\MedicalAppointments.Core.csproj" />
     <ProjectReference Include="..\..\nuggets\Nuget.Persistence\Nuget.Persistence.csproj" />
-    <ProjectReference Include="..\..\nuggets\NugetPackage_Rest\NugetPackage_Rest\NugetPackage_Rest.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
-    <!-- Provee services.AddHttpClient<,>(): la libreria NugetPackageRest no lo trae como dependencia -->
-    <PackageReference Include="Microsoft.Extensions.Http" Version="9.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -21,12 +18,5 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
-
-  <!-- Permite que el proyecto de pruebas construya PacienteService (internal) -->
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
-      <_Parameter1>MedicalAppointments.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
 
 </Project>
