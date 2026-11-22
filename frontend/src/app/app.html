@@ -1,0 +1,440 @@
+<div class="swagger-app-wrapper">
+  <!-- Top Swagger-style Header -->
+  <header class="swagger-header">
+    <div class="header-inner">
+      <div class="header-title-box">
+        <span class="swagger-logo">API</span>
+        <div>
+          <h1>MedicalAppointments.Api &amp; Worker Services</h1>
+          <div class="swagger-subtitle">
+            <span class="version-tag">v1.0.0</span>
+            <span class="base-url">OAS 3.0 &bull; http://localhost:5000 &bull; http://localhost:5100</span>
+          </div>
+        </div>
+      </div>
+      <div class="server-selector">
+        <span class="active-pulse"></span>
+        <span>Servidor Activo: Localhost (ASP.NET Core 9 + Angular 20)</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="swagger-body">
+    <div class="intro-description">
+      <p>
+        Esta interfaz web implementa de forma interactiva <strong>todas las funciones expuestas en Swagger UI</strong> para los microservicios de <strong>Citas</strong>, <strong>Estados</strong> y <strong>Notificaciones (Worker Service)</strong>. Puedes ingresar parámetros, ejecutar peticiones HTTP directas y visualizar el código de estado y cuerpo de respuesta en tiempo real.
+      </p>
+    </div>
+
+    <!-- NAVEGACIÓN POR CONTROLADOR -->
+    <div class="controller-tabs">
+      <button class="ctrl-tab" [class.active]="activeSection === 'citas'" (click)="activeSection = 'citas'">
+        📅 CitasController (6 endpoints)
+      </button>
+      <button class="ctrl-tab" [class.active]="activeSection === 'estados'" (click)="activeSection = 'estados'">
+        🏷️ EstadosCitaController (2 endpoints)
+      </button>
+      <button class="ctrl-tab" [class.active]="activeSection === 'notificaciones'" (click)="activeSection = 'notificaciones'">
+        🔔 NotificacionesController (Worker Service - 3 endpoints)
+      </button>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- GRUPO 1: CITAS CONTROLLER                  -->
+    <!-- ========================================== -->
+    <section *ngIf="activeSection === 'citas'" class="controller-block">
+      <div class="controller-heading">
+        <h2>Citas</h2>
+        <span class="controller-desc">Operaciones CRUD, consultas directas y paginación genérica sobre Cita</span>
+      </div>
+
+      <!-- 1. GET /api/Citas -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getCitas'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getCitas')">
+          <span class="method get">GET</span>
+          <span class="path">/api/Citas</span>
+          <span class="desc">Consulta el listado completo de citas</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getCitas' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'getCitas'" class="endpoint-content">
+          <div class="action-bar">
+            <button (click)="ejecutarGetAll()" class="btn-execute get">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['getAll']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['getAll'].status || 200 }} OK</strong></span>
+            </div>
+            <pre class="json-viewer">{{ respuestas['getAll'].data | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. GET /api/Citas/paged -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getPaged'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getPaged')">
+          <span class="method get">GET</span>
+          <span class="path">/api/Citas/paged</span>
+          <span class="desc">Consulta citas con paginacion generica y filtro dinamico (Nuget.Persistence)</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getPaged' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'getPaged'" class="endpoint-content">
+          <h4>Parámetros de consulta (Query Parameters)</h4>
+          <div class="params-grid">
+            <div class="param-row">
+              <label>pageNumber (int)</label>
+              <input type="number" [(ngModel)]="paramsPaged.pageNumber" class="input-param" />
+            </div>
+            <div class="param-row">
+              <label>pageSize (int)</label>
+              <input type="number" [(ngModel)]="paramsPaged.pageSize" class="input-param" />
+            </div>
+            <div class="param-row">
+              <label>filter (string lambda)</label>
+              <input type="text" [(ngModel)]="paramsPaged.filter" placeholder='Ej: Motivo.Contains("control")' class="input-param" />
+            </div>
+            <div class="param-row">
+              <label>orderBy (string)</label>
+              <input type="text" [(ngModel)]="paramsPaged.orderBy" placeholder="Ej: FechaHoraInicio asc" class="input-param" />
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <button (click)="ejecutarGetPaged()" class="btn-execute get">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['getPaged']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['getPaged'].status }} OK</strong></span>
+            </div>
+            <pre class="json-viewer">{{ respuestas['getPaged'].data | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. GET /api/Citas/{id} -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getById'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getById')">
+          <span class="method get">GET</span>
+          <span class="path">/api/Citas/&#123;id&#125;</span>
+          <span class="desc">Consulta una cita especifica por su identificador</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getById' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'getById'" class="endpoint-content">
+          <h4>Parámetros de ruta (Path Parameters)</h4>
+          <div class="param-row-single">
+            <label>id (long) *requerido</label>
+            <input type="number" [(ngModel)]="paramGetById" class="input-param" />
+          </div>
+
+          <div class="action-bar">
+            <button (click)="ejecutarGetById()" class="btn-execute get">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['getById']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['getById'].status }}</strong></span>
+            </div>
+            <pre class="json-viewer">{{ (respuestas['getById'].data || respuestas['getById'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. POST /api/Citas -->
+      <div class="endpoint-card post" [class.open]="endpointAbierto === 'postCita'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('postCita')">
+          <span class="method post">POST</span>
+          <span class="path">/api/Citas</span>
+          <span class="desc">Crea una nueva cita médica</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'postCita' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'postCita'" class="endpoint-content">
+          <h4>Cuerpo de la petición (Request Body - JSON)</h4>
+          <div class="form-grid-swagger">
+            <div>
+              <label>pacienteID *</label>
+              <input type="number" [(ngModel)]="bodyCreate.pacienteID" class="input-param" />
+            </div>
+            <div>
+              <label>medicoID *</label>
+              <input type="number" [(ngModel)]="bodyCreate.medicoID" class="input-param" />
+            </div>
+            <div>
+              <label>especialidadID</label>
+              <input type="number" [(ngModel)]="bodyCreate.especialidadID" class="input-param" />
+            </div>
+            <div>
+              <label>consultorioID</label>
+              <input type="number" [(ngModel)]="bodyCreate.consultorioID" class="input-param" />
+            </div>
+            <div>
+              <label>estadoCitaID (1: Pendiente)</label>
+              <input type="number" [(ngModel)]="bodyCreate.estadoCitaID" class="input-param" />
+            </div>
+            <div>
+              <label>fechaHoraInicio *</label>
+              <input type="datetime-local" [(ngModel)]="bodyCreate.fechaHoraInicio" class="input-param" />
+            </div>
+            <div class="span-2">
+              <label>motivo (string)</label>
+              <input type="text" [(ngModel)]="bodyCreate.motivo" class="input-param" />
+            </div>
+            <div class="span-2">
+              <label>observaciones (string)</label>
+              <input type="text" [(ngModel)]="bodyCreate.observaciones" class="input-param" />
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <button (click)="ejecutarPostCita()" class="btn-execute post">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['postCita']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['postCita'].status }} Created</strong></span>
+            </div>
+            <pre class="json-viewer">{{ (respuestas['postCita'].data || respuestas['postCita'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. PUT /api/Citas/{id} -->
+      <div class="endpoint-card put" [class.open]="endpointAbierto === 'putCita'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('putCita')">
+          <span class="method put">PUT</span>
+          <span class="path">/api/Citas/&#123;id&#125;</span>
+          <span class="desc">Actualiza los datos de una cita existente</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'putCita' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'putCita'" class="endpoint-content">
+          <h4>Parámetro de ruta (id) y cuerpo a actualizar</h4>
+          <div class="param-row-single mb-3">
+            <label>id (long) a modificar *</label>
+            <input type="number" [(ngModel)]="paramPutId" class="input-param" />
+          </div>
+
+          <div class="form-grid-swagger">
+            <div>
+              <label>estadoCitaID (1: Pend, 2: Conf, 3: Aten, 4: Canc)</label>
+              <input type="number" [(ngModel)]="bodyUpdate.estadoCitaID" class="input-param" />
+            </div>
+            <div>
+              <label>fechaHoraInicio</label>
+              <input type="datetime-local" [(ngModel)]="bodyUpdate.fechaHoraInicio" class="input-param" />
+            </div>
+            <div class="span-2">
+              <label>motivo</label>
+              <input type="text" [(ngModel)]="bodyUpdate.motivo" class="input-param" />
+            </div>
+            <div class="span-2">
+              <label>observaciones</label>
+              <input type="text" [(ngModel)]="bodyUpdate.observaciones" class="input-param" />
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <button (click)="ejecutarPutCita()" class="btn-execute put">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['putCita']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['putCita'].status }}</strong></span>
+            </div>
+            <pre class="json-viewer">{{ (respuestas['putCita'].data || respuestas['putCita'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 6. DELETE /api/Citas/{id} -->
+      <div class="endpoint-card delete" [class.open]="endpointAbierto === 'deleteCita'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('deleteCita')">
+          <span class="method delete">DELETE</span>
+          <span class="path">/api/Citas/&#123;id&#125;</span>
+          <span class="desc">Elimina una cita existente</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'deleteCita' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'deleteCita'" class="endpoint-content">
+          <h4>Parámetro de ruta</h4>
+          <div class="param-row-single">
+            <label>id (long) a eliminar *</label>
+            <input type="number" [(ngModel)]="paramDeleteId" class="input-param" />
+          </div>
+
+          <div class="action-bar">
+            <button (click)="ejecutarDeleteCita()" class="btn-execute delete">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['deleteCita']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['deleteCita'].status }}</strong></span>
+            </div>
+            <pre class="json-viewer">{{ (respuestas['deleteCita'].data || respuestas['deleteCita'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- GRUPO 2: ESTADOS CITA CONTROLLER           -->
+    <!-- ========================================== -->
+    <section *ngIf="activeSection === 'estados'" class="controller-block">
+      <div class="controller-heading">
+        <h2>EstadosCita</h2>
+        <span class="controller-desc">Catálogo de estados de citas (Pendiente, Confirmada, Atendida, Cancelada)</span>
+      </div>
+
+      <!-- 7. GET /api/EstadosCita -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getEstados'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getEstados')">
+          <span class="method get">GET</span>
+          <span class="path">/api/EstadosCita</span>
+          <span class="desc">Consulta el listado completo de estados de cita</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getEstados' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'getEstados'" class="endpoint-content">
+          <div class="action-bar">
+            <button (click)="ejecutarGetEstados()" class="btn-execute get">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['getEstados']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['getEstados'].status }} OK</strong></span>
+            </div>
+            <pre class="json-viewer">{{ respuestas['getEstados'].data | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. GET /api/EstadosCita/{id} -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getEstadoById'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getEstadoById')">
+          <span class="method get">GET</span>
+          <span class="path">/api/EstadosCita/&#123;id&#125;</span>
+          <span class="desc">Consulta un estado de cita especifico por su identificador</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getEstadoById' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'getEstadoById'" class="endpoint-content">
+          <div class="param-row-single">
+            <label>id (int) del estado *</label>
+            <input type="number" [(ngModel)]="paramEstadoId" class="input-param" />
+          </div>
+
+          <div class="action-bar">
+            <button (click)="ejecutarGetEstadoById()" class="btn-execute get">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['getEstadoById']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['getEstadoById'].status }}</strong></span>
+            </div>
+            <pre class="json-viewer">{{ (respuestas['getEstadoById'].data || respuestas['getEstadoById'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- GRUPO 3: NOTIFICACIONES & WORKER SERVICE   -->
+    <!-- ========================================== -->
+    <section *ngIf="activeSection === 'notificaciones'" class="controller-block">
+      <div class="controller-heading">
+        <h2>Notificaciones &amp; Background Worker Service</h2>
+        <span class="controller-desc">Servicio en segundo plano (.NET 9) para sondeo de citas y recordatorios periódicos</span>
+      </div>
+
+      <!-- 9. GET /api/Notificaciones -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getNotifs'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getNotifs')">
+          <span class="method get">GET</span>
+          <span class="path">/api/Notificaciones</span>
+          <span class="desc">Consulta el historial de notificaciones y recordatorios despachados por el Worker</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getNotifs' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'getNotifs'" class="endpoint-content">
+          <div class="params-grid">
+            <div class="param-row">
+              <label>estado (opcional: Enviado / Pendiente)</label>
+              <input type="text" [(ngModel)]="paramFiltroEstadoNotif" class="input-param" placeholder="Enviado" />
+            </div>
+            <div class="param-row">
+              <label>canal (opcional: WhatsApp / SMS / Email)</label>
+              <input type="text" [(ngModel)]="paramFiltroCanalNotif" class="input-param" placeholder="WhatsApp" />
+            </div>
+          </div>
+
+          <div class="action-bar">
+            <button (click)="ejecutarGetNotificaciones()" class="btn-execute get">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['getNotificaciones']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['getNotificaciones'].status }} OK</strong></span>
+            </div>
+            <pre class="json-viewer">{{ respuestas['getNotificaciones'].data | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10. GET /api/Notificaciones/stats -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getStats'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getStats')">
+          <span class="method get">GET</span>
+          <span class="path">/api/Notificaciones/stats</span>
+          <span class="desc">Devuelve metricas e indicadores de ausentismo y efectividad del Worker Service</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getStats' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'getStats'" class="endpoint-content">
+          <div class="action-bar">
+            <button (click)="ejecutarGetStats()" class="btn-execute get">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['getStats']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['getStats'].status }} OK</strong></span>
+            </div>
+            <pre class="json-viewer">{{ respuestas['getStats'].data | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 11. POST /api/Notificaciones/{id}/reintentar -->
+      <div class="endpoint-card post" [class.open]="endpointAbierto === 'reintentar'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('reintentar')">
+          <span class="method post">POST</span>
+          <span class="path">/api/Notificaciones/&#123;id&#125;/reintentar</span>
+          <span class="desc">Fuerza el reintento de despacho de una notificación</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'reintentar' ? '▲' : '▼' }}</span>
+        </div>
+
+        <div *ngIf="endpointAbierto === 'reintentar'" class="endpoint-content">
+          <div class="param-row-single">
+            <label>id (long) de la notificación *</label>
+            <input type="number" [(ngModel)]="paramReintentarNotifId" class="input-param" />
+          </div>
+
+          <div class="action-bar">
+            <button (click)="ejecutarReintentarNotificacion()" class="btn-execute post">Ejecutar (Execute)</button>
+          </div>
+
+          <div *ngIf="respuestas['reintentarNotif']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['reintentarNotif'].status }} OK</strong></span>
+            </div>
+            <pre class="json-viewer">{{ (respuestas['reintentarNotif'].data || respuestas['reintentarNotif'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
