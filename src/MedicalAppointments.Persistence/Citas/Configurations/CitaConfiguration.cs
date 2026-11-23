@@ -32,5 +32,11 @@ public class CitaConfiguration : IEntityTypeConfiguration<Cita>
 
         builder.Property(c => c.Observaciones)
             .HasMaxLength(1000);
+
+        builder.Property(c => c.NombreMedico)
+            .HasMaxLength(150);
+
+        builder.Property(c => c.Especialidad)
+            .HasMaxLength(150);
     }
 }

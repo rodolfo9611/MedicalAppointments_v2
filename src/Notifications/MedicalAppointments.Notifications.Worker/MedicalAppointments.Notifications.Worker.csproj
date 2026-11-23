@@ -13,6 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\MedicalAppointments.Notifications.Application\MedicalAppointments.Notifications.Application.csproj" />
     <ProjectReference Include="..\MedicalAppointments.Notifications.Domain\MedicalAppointments.Notifications.Domain.csproj" />
     <ProjectReference Include="..\MedicalAppointments.Notifications.Persistence\MedicalAppointments.Notifications.Persistence.csproj" />
   </ItemGroup>

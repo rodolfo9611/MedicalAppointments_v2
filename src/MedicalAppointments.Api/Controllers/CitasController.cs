@@ -1,11 +1,13 @@
 using MediatR;
 using MedicalAppointments.Core.Citas.Commands.CreateCita;
 using MedicalAppointments.Core.Citas.Commands.CreateCitas;
+using MedicalAppointments.Core.Citas.Commands.DeleteCita;
+using MedicalAppointments.Core.Citas.Commands.UpdateCita;
+using MedicalAppointments.Core.Citas.DTOs;
 using MedicalAppointments.Core.Citas.Queries.GetCitaById;
 using MedicalAppointments.Core.Citas.Queries.GetCitaOneBy;
+using MedicalAppointments.Core.Citas.Queries.GetCitas;
 using MedicalAppointments.Core.Citas.Queries.GetCitasPaged;
-using MedicalAppointments.Domain.Citas.Entities;
-using MedicalAppointments.Domain.Citas.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Nuget.Persistence.Common;
 
@@ -15,24 +17,24 @@ namespace MedicalAppointments.Api.Controllers;
 [Route("api/[controller]")]
 public class CitasController : ControllerBase
 {
-    private readonly ICitaRepository _citaRepository;
     private readonly IMediator _mediator;
 
-    public CitasController(ICitaRepository citaRepository, IMediator mediator)
+    public CitasController(IMediator mediator)
     {
-        _citaRepository = citaRepository;
         _mediator = mediator;
     }
 
-    /// <summary>Consulta el listado completo de citas.</summary>
+    /// <summary>
+    /// Consulta el listado completo de citas como DTOs con estado legible y datos maestros.
+    /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var citas = await _citaRepository.GetAllAsync();
+        var citas = await _mediator.Send(new GetCitasQuery());
         return Ok(citas);
     }
 
-    /// <summary>Consulta una cita especifica por su identificador.</summary>
+    /// <summary>Consulta una cita específica por su identificador.</summary>
     [HttpGet("{id:long}")]
     public async Task<IActionResult> GetById(long id)
     {
@@ -43,7 +45,7 @@ public class CitasController : ControllerBase
         return Ok(cita);
     }
 
-    /// <summary>Consulta citas con paginacion generica, filtro dinamico y OrderBy dinamico por cualquier campo.</summary>
+    /// <summary>Consulta citas con paginación genérica, filtro dinámico y OrderBy dinámico.</summary>
     [HttpGet("paged")]
     public async Task<IActionResult> GetPaged([FromQuery] GetCitasPagedQuery query)
     {
@@ -57,7 +59,7 @@ public class CitasController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Consulta una cita con filtrado generico tipo expresion (GetOneBy).</summary>
+    /// <summary>Consulta una cita con filtrado genérico tipo expresión (GetOneBy).</summary>
     [HttpGet("one")]
     public async Task<IActionResult> GetOneBy([FromQuery] string filter)
     {
@@ -74,47 +76,84 @@ public class CitasController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Crea una nueva cita.</summary>
+    /// <summary>
+    /// Abre un nuevo proceso médico. Solo debe usarse cuando exista un motivo de consulta independiente;
+    /// reprogramaciones, revisiones, cirugías y recetas evolucionan el mismo CitaID mediante PUT.
+    /// </summary>
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateCitaCommand command)
     {
-        var newId = await _mediator.Send(command);
-        return CreatedAtAction(nameof(GetById), new { id = newId }, new { CitaID = newId });
+        try
+        {
+            var newId = await _mediator.Send(command);
+            return CreatedAtAction(nameof(GetById), new { id = newId }, new { CitaID = newId });
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return BadRequest(new HttpResponse<object> { Success = false, Message = ex.Message });
+        }
     }
 
-    /// <summary>Crea un rango de citas a partir de una lista, con un unico guardado (AddRange).</summary>
+    /// <summary>Crea un rango de citas independientes con un único guardado (AddRange).</summary>
     [HttpPost("range")]
     public async Task<IActionResult> CreateRange([FromBody] CreateCitasCommand command)
     {
         if (command.Citas is null || command.Citas.Count == 0)
-            return BadRequest(new HttpResponse<object> { Success = false, Message = "La lista de citas no puede estar vacia." });
+            return BadRequest(new HttpResponse<object> { Success = false, Message = "La lista de citas no puede estar vacía." });
 
-        var total = await _mediator.Send(command);
-        return Ok(new HttpResponse<int> { Success = true, Message = "Rango de citas guardado correctamente.", Data = total });
+        try
+        {
+            var total = await _mediator.Send(command);
+            return Ok(new HttpResponse<int> { Success = true, Message = "Rango de citas guardado correctamente.", Data = total });
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return BadRequest(new HttpResponse<object> { Success = false, Message = ex.Message });
+        }
     }
 
-    /// <summary>Actualiza los datos de una cita existente.</summary>
+    /// <summary>
+    /// Evoluciona el mismo proceso médico: registra atención secuencial, reprograma dentro de
+    /// PendienteResultados y cambia al estado clínico correspondiente sin crear otra cita.
+    /// </summary>
     [HttpPut("{id:long}")]
-    public async Task<IActionResult> Update(long id, [FromBody] Cita cita)
+    public async Task<IActionResult> Update(long id, [FromBody] UpdateCitaDto datos)
     {
-        var existente = await _citaRepository.GetByIdAsync(id);
-        if (existente is null)
-            return NotFound();
+        if (id <= 0)
+            return BadRequest(new HttpResponse<object> { Success = false, Message = "El CitaID debe ser mayor a 0." });
 
-        cita.CitaID = id;
-        await _citaRepository.UpdateAsync(cita);
-        return NoContent();
+        try
+        {
+            var cita = await _mediator.Send(new UpdateCitaCommand(id, datos));
+            if (cita is null)
+                return NotFound();
+
+            return NoContent();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return BadRequest(new HttpResponse<object> { Success = false, Message = ex.Message });
+        }
     }
 
-    /// <summary>Elimina una cita existente.</summary>
+    /// <summary>Cancela lógicamente una cita conservando su CitaID y su historial clínico.</summary>
     [HttpDelete("{id:long}")]
     public async Task<IActionResult> Delete(long id)
     {
-        var existente = await _citaRepository.GetByIdAsync(id);
-        if (existente is null)
-            return NotFound();
+        if (id <= 0)
+            return BadRequest(new HttpResponse<object> { Success = false, Message = "El CitaID debe ser mayor a 0." });
 
-        await _citaRepository.DeleteAsync(existente);
-        return NoContent();
+        try
+        {
+            var eliminada = await _mediator.Send(new DeleteCitaCommand(id));
+            if (!eliminada)
+                return NotFound();
+
+            return NoContent();
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException)
+        {
+            return BadRequest(new HttpResponse<object> { Success = false, Message = ex.Message });
+        }
     }
 }

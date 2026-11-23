@@ -41,7 +41,15 @@ public class NotificacionConfiguration : IEntityTypeConfiguration<Notificacion>
         builder.Property(n => n.DetalleRespuesta)
                .HasMaxLength(500);
 
+        builder.Property(n => n.TipoNotificacion)
+               .HasConversion<string>()
+               .HasMaxLength(30)
+               .IsRequired();
+
+        builder.Property(n => n.RecetaMedicaID);
+
         builder.HasIndex(n => n.CitaID);
         builder.HasIndex(n => n.Estado);
+        builder.HasIndex(n => n.TipoNotificacion);
     }
 }

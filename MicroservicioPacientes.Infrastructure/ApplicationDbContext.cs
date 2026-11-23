@@ -14,10 +14,38 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // Configuraci髇 de relaci髇 1 a Muchos
+        // Configuraci贸n de relaci贸n 1 a Muchos
         modelBuilder.Entity<Paciente>()
             .HasMany(p => p.Historiales)
             .WithOne()
             .HasForeignKey(h => h.PacienteId);
+
+        modelBuilder.Entity<Paciente>(entity =>
+        {
+            entity.Property(p => p.Nombre).IsRequired().HasMaxLength(100);
+            entity.Property(p => p.Apellido).IsRequired().HasMaxLength(100);
+            entity.Property(p => p.DocumentoIdentidad).IsRequired().HasMaxLength(30);
+            entity.Property(p => p.CodigoPaciente).IsRequired().HasMaxLength(30);
+            entity.Property(p => p.CorreoElectronico).HasMaxLength(150);
+            entity.Property(p => p.Telefono).HasMaxLength(30);
+
+            // C贸digo de paciente 煤nico en base de datos.
+            entity.HasIndex(p => p.CodigoPaciente).IsUnique();
+        });
+
+        modelBuilder.Entity<HistorialMedico>(entity =>
+        {
+            entity.Property(h => h.TipoEvento).IsRequired().HasMaxLength(100);
+            entity.Property(h => h.Descripcion).IsRequired().HasMaxLength(2000);
+            entity.Property(h => h.Diagnostico).HasMaxLength(2000);
+            entity.Property(h => h.Tratamiento).HasMaxLength(2000);
+            entity.Property(h => h.EventKey).IsRequired().HasMaxLength(200);
+            entity.Property(h => h.MotivoReprogramacion).HasMaxLength(500);
+
+            // Idempotencia de eventos: un EventKey s贸lo puede registrarse una vez.
+            entity.HasIndex(h => h.EventKey).IsUnique();
+
+            entity.HasIndex(h => new { h.CitaID, h.TipoEvento });
+        });
     }
 }

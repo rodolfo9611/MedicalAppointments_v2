@@ -12,4 +12,6 @@ public record CreateCitaCommand(
     DateTime? FechaHoraFin,
     string? Motivo,
     string? Observaciones,
-    int? UsuarioCreacionID) : IRequest<long>;
+    int? UsuarioCreacionID,
+    string? NombreMedico = null,
+    string? Especialidad = null) : IRequest<long>;

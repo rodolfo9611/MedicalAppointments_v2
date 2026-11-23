@@ -1,3 +1,5 @@
+using MedicalAppointments.Notifications.Domain.Enums;
+
 namespace MedicalAppointments.Notifications.Domain.Entities;
 
 public class Notificacion
@@ -15,4 +17,6 @@ public class Notificacion
     public string Estado { get; set; } = "Pendiente"; // Pendiente, Enviado, Fallido
     public int Intentos { get; set; } = 0;
     public string? DetalleRespuesta { get; set; }
+    public TipoNotificacionEnum TipoNotificacion { get; set; } = TipoNotificacionEnum.RecordatorioCita;
+    public long? RecetaMedicaID { get; set; }
 }

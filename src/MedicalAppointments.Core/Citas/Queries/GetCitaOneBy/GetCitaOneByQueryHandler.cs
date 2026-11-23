@@ -33,21 +33,7 @@ public class GetCitaOneByQueryHandler : IRequestHandler<GetCitaOneByQuery, HttpR
             {
                 Success = true,
                 Message = "Consulta realizada con filtrado generico.",
-                Data = new GetCitaDto
-                {
-                    CitaID = cita.CitaID,
-                    PacienteID = cita.PacienteID,
-                    MedicoID = cita.MedicoID,
-                    EspecialidadID = cita.EspecialidadID,
-                    ConsultorioID = cita.ConsultorioID,
-                    EstadoCitaID = cita.EstadoCitaID,
-                    FechaHoraInicio = cita.FechaHoraInicio,
-                    FechaHoraFin = cita.FechaHoraFin,
-                    Motivo = cita.Motivo,
-                    Observaciones = cita.Observaciones,
-                    UsuarioCreacionID = cita.UsuarioCreacionID,
-                    FechaCreacion = cita.FechaCreacion
-                }
+                Data = cita.ToDto()
             };
         }
         catch (ValidationException ex)

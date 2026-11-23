@@ -1,48 +1,132 @@
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+using MediatR;
 using MicroservicioPacientes.Application;
-using MicroservicioPacientes.Infrastructure;
+using MicroservicioPacientes.Application.Queries.GetPacientes;
 using MicroservicioPacientes.Domain;
+using MicroservicioPacientes.Infrastructure;
+using Nuget.Persistence.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuraci髇 de la base de datos en memoria
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseInMemoryDatabase("PacientesDb"));
+// Persistencia configurable por configuraci贸n: InMemory | SqlServer.
+builder.Services.AddConfiguredDbContext<ApplicationDbContext>(
+    builder.Configuration,
+    "DefaultConnection",
+    "PacientesDb");
 
-// Inyecci髇 de dependencias requerida por la evaluaci髇 (Repositorio Inyectado)
 builder.Services.AddScoped<IPacienteRepository, PacienteRepository>();
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(GetPacientesQuery).Assembly));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    if (File.Exists(xmlPath))
+        c.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 var app = builder.Build();
 
-// Carga de datos iniciales
+// Si se usa SQL Server se crea la base de datos de forma segura; en InMemory no aplica.
+if (string.Equals(builder.Configuration["Persistence:Provider"], "SqlServer", StringComparison.OrdinalIgnoreCase))
+{
+    try
+    {
+        await app.Services.InitializeConfiguredDatabaseAsync<ApplicationDbContext>();
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "No se pudo inicializar la base de datos de Pacientes.");
+    }
+}
+
+// Carga de datos inicial: cat谩logo cl铆nico ficticio con nombres reales, sin registros de prueba.
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    if (!context.Pacientes.Any())
+
+    var pacientesIniciales = new[]
     {
-        context.Pacientes.Add(new Paciente
+        new PacienteSemilla("Carlos", "P茅rez", "06123456-7", new DateTime(1988, 4, 12), "PAC-000001", "carlos.perez@correo-clinica.com", "+503 7000 1234", "Consulta general", "Consulta general de control inicial.", "Paracetamol 500 mg cada 8 horas", "ConsultaGeneral"),
+        new PacienteSemilla("Luc铆a", "Mart铆nez", "06123457-5", new DateTime(1992, 8, 23), "PAC-000002", "lucia.martinez@correo-clinica.com", "+503 7123 4567", "Hipertensi贸n arterial", "Control de presi贸n arterial.", "Losart谩n 50 mg diario", "Control"),
+        new PacienteSemilla("Diego", "Ram铆rez", "06123458-3", new DateTime(1979, 11, 4), "PAC-000003", "diego.ramirez@correo-clinica.com", "+503 7234 5678", "Evaluaci贸n cardiol贸gica", "Evaluaci贸n cardiol贸gica de seguimiento.", "Ecoterapia y control peri贸dico", "ConsultaGeneral"),
+        new PacienteSemilla("Sof铆a", "Hern谩ndez", "06123459-1", new DateTime(1985, 2, 17), "PAC-000004", "sofia.hernandez@correo-clinica.com", "+503 7345 6789", "Revisi贸n dermatol贸gica", "Revisi贸n dermatol贸gica.", "Protector solar y crema t贸pica", "Control"),
+        new PacienteSemilla("Andr茅s", "L贸pez", "06123460-9", new DateTime(1996, 6, 30), "PAC-000005", "andres.lopez@correo-clinica.com", "+503 7456 7890", "Malestar digestivo", "Consulta general por malestar estomacal.", "Dieta blanda e hidrataci贸n", "ConsultaGeneral"),
+        new PacienteSemilla("Valentina", "Cruz", "06123461-7", new DateTime(2001, 9, 12), "PAC-000006", "valentina.cruz@correo-clinica.com", "+503 7567 8901", "Control pedi谩trico", "Control pedi谩trico de crecimiento.", "Suplemento vitam铆nico", "Control"),
+        new PacienteSemilla("Mauricio", "脕valos", "06123462-5", new DateTime(1972, 3, 8), "PAC-000007", "mauricio.avalos@correo-clinica.com", "+503 7678 9012", "Lumbalgia", "Dolor lumbar persistente.", "Fisioterapia y analg茅sico", "ConsultaGeneral"),
+        new PacienteSemilla("Patricia", "Sol铆s", "06123463-3", new DateTime(1983, 7, 21), "PAC-000008", "patricia.solis@correo-clinica.com", "+503 7789 0123", "Control ginecol贸gico", "Control ginecol贸gico anual.", "Examen de control y orientaci贸n", "Control"),
+        new PacienteSemilla("Javier", "Santana", "06123464-1", new DateTime(1990, 12, 5), "PAC-000009", "javier.santana@correo-clinica.com", "+503 7890 1234", "Revisi贸n visual", "Revisi贸n de visi贸n.", "Uso de lentes correctivos", "ConsultaGeneral"),
+        new PacienteSemilla("Elena", "Rosales", "06123465-9", new DateTime(1968, 10, 14), "PAC-000010", "elena.rosales@correo-clinica.com", "+503 7901 2345", "Seguimiento cr贸nico", "Seguimiento de tratamiento cr贸nico.", "Control mensual de laboratorio", "Control")
+    };
+
+    for (var i = 0; i < pacientesIniciales.Length; i++)
+    {
+        var semilla = pacientesIniciales[i];
+        var paciente = context.Pacientes.FirstOrDefault(p =>
+            p.CodigoPaciente == semilla.Codigo || p.DocumentoIdentidad == semilla.Documento);
+
+        if (paciente is null)
         {
-            Nombre = "Carlos",
-            Apellido = "P閞ez",
-            DocumentoIdentidad = "12345678-9",
-            FechaNacimiento = new DateTime(1990, 5, 15),
-            Historiales = new List<HistorialMedico>
+            paciente = new Paciente
             {
-                new HistorialMedico
-                {
-                    FechaRegistro = DateTime.Now,
-                    Diagnostico = "Consulta General",
-                    Tratamiento = "Paracetamol 500mg cada 8 horas"
-                }
-            }
-        });
-        context.SaveChanges();
+                Nombre = semilla.Nombre,
+                Apellido = semilla.Apellido,
+                DocumentoIdentidad = semilla.Documento,
+                FechaNacimiento = semilla.FechaNacimiento,
+                CodigoPaciente = semilla.Codigo,
+                CorreoElectronico = semilla.Correo,
+                Telefono = semilla.Telefono
+            };
+            context.Pacientes.Add(paciente);
+        }
+        else
+        {
+            // Compatibilidad con bases ya creadas: se actualizan los datos maestros.
+            paciente.Nombre = semilla.Nombre;
+            paciente.Apellido = semilla.Apellido;
+            paciente.DocumentoIdentidad = semilla.Documento;
+            paciente.FechaNacimiento = semilla.FechaNacimiento;
+            paciente.CodigoPaciente = semilla.Codigo;
+            paciente.CorreoElectronico = semilla.Correo;
+            paciente.Telefono = semilla.Telefono;
+        }
+
+        var eventKey = $"SEED-{semilla.Codigo}-001";
+        if (!context.HistorialesMedicos.Any(h => h.EventKey == eventKey))
+        {
+            paciente.Historiales.Add(new HistorialMedico
+            {
+                FechaRegistro = DateTime.Now,
+                FechaEvento = DateTime.Today.AddDays(-45 + i * 4),
+                Diagnostico = semilla.Diagnostico,
+                Tratamiento = semilla.Tratamiento,
+                TipoEvento = semilla.TipoEvento,
+                Descripcion = semilla.Descripcion,
+                EventKey = eventKey
+            });
+        }
     }
+
+    context.SaveChanges();
 }
+
+app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
 {
@@ -54,3 +138,16 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+internal sealed record PacienteSemilla(
+    string Nombre,
+    string Apellido,
+    string Documento,
+    DateTime FechaNacimiento,
+    string Codigo,
+    string Correo,
+    string Telefono,
+    string Diagnostico,
+    string Descripcion,
+    string Tratamiento,
+    string TipoEvento);

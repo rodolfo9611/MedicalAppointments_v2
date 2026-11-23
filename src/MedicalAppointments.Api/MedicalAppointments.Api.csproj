@@ -15,6 +15,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\MedicalAppointments.Core\MedicalAppointments.Core.csproj" />
+		<ProjectReference Include="..\MedicalAppointments.Infrastructure\MedicalAppointments.Infrastructure.csproj" />
 		<ProjectReference Include="..\MedicalAppointments.Persistence\MedicalAppointments.Persistence.csproj" />
 	</ItemGroup>
 

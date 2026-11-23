@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.5.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MedicalAppointments.RecetasMedicas.Application\MedicalAppointments.RecetasMedicas.Application.csproj" />
+    <ProjectReference Include="..\MedicalAppointments.RecetasMedicas.Persistence\MedicalAppointments.RecetasMedicas.Persistence.csproj" />
+  </ItemGroup>
+
+</Project>
