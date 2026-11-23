@@ -1,3 +1,11 @@
+using MediatR;
+using MedicalAppointments.Notifications.Application.Commands.CreateNotificacion;
+using MedicalAppointments.Notifications.Application.Commands.DeleteNotificacion;
+using MedicalAppointments.Notifications.Application.Commands.UpdateNotificacion;
+using MedicalAppointments.Notifications.Application.DTOs;
+using MedicalAppointments.Notifications.Application.Integration;
+using MedicalAppointments.Notifications.Application.Queries.GetNotificacionById;
+using MedicalAppointments.Notifications.Application.Queries.GetNotificacionesPaged;
 using MedicalAppointments.Notifications.Domain.Entities;
 using MedicalAppointments.Notifications.Domain.Interfaces;
 using MedicalAppointments.Notifications.Persistence.Context;
@@ -13,15 +21,21 @@ public class NotificacionesController : ControllerBase
     private readonly INotificacionRepository _notificacionRepository;
     private readonly NotificationsDbContext _dbContext;
     private readonly ILogger<NotificacionesController> _logger;
+    private readonly ISender _sender;
+    private readonly INotificacionHistorialReporter _historialReporter;
 
     public NotificacionesController(
         INotificacionRepository notificacionRepository,
         NotificationsDbContext dbContext,
-        ILogger<NotificacionesController> logger)
+        ILogger<NotificacionesController> logger,
+        ISender sender,
+        INotificacionHistorialReporter historialReporter)
     {
         _notificacionRepository = notificacionRepository;
         _dbContext = dbContext;
         _logger = logger;
+        _sender = sender;
+        _historialReporter = historialReporter;
     }
 
     /// <summary>
@@ -51,16 +65,26 @@ public class NotificacionesController : ControllerBase
     }
 
     /// <summary>
+    /// Listado paginado con filtros por estado, canal, tipo y rango de fechas.
+    /// </summary>
+    [HttpGet("paged")]
+    public async Task<IActionResult> GetPaged([FromQuery] GetNotificacionesPagedQuery query)
+    {
+        var response = await _sender.Send(query);
+        return response.Success ? Ok(response) : BadRequest(response);
+    }
+
+    /// <summary>
     /// Consulta una notificación por su identificador único.
     /// </summary>
     [HttpGet("{id:long}")]
     public async Task<IActionResult> GetById(long id)
     {
-        var notif = await _notificacionRepository.GetByIdAsync(id);
-        if (notif is null)
+        var response = await _sender.Send(new GetNotificacionByIdQuery(id));
+        if (!response.Success || response.Data is null)
             return NotFound();
 
-        return Ok(notif);
+        return Ok(response.Data);
     }
 
     /// <summary>
@@ -106,17 +130,47 @@ public class NotificacionesController : ControllerBase
     }
 
     /// <summary>
-    /// Permite crear manualmente una notificación de recordatorio para pruebas directas.
+    /// Crea una notificación (recordatorio de cita o notificación de receta médica).
     /// </summary>
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Notificacion notificacion)
+    public async Task<IActionResult> Create([FromBody] CreateNotificacionDto notificacion)
     {
-        notificacion.FechaRegistro = DateTime.UtcNow;
-        if (string.IsNullOrWhiteSpace(notificacion.Estado))
-            notificacion.Estado = "Pendiente";
+        var response = await _sender.Send(new CreateNotificacionCommand(notificacion));
+        if (!response.Success || response.Data is null)
+            return BadRequest(response);
 
-        var id = await _notificacionRepository.AddAsync(notificacion);
-        return CreatedAtAction(nameof(GetById), new { id }, notificacion);
+        if (string.Equals(response.Data.Estado, "Enviado", StringComparison.OrdinalIgnoreCase))
+        {
+            await _historialReporter.ReportarEnvioAsync(response.Data.ToEnviadaEvent());
+        }
+
+        return CreatedAtAction(nameof(GetById), new { id = response.Data.NotificacionID }, response.Data);
+    }
+
+    /// <summary>
+    /// Actualiza una notificación existente.
+    /// </summary>
+    [HttpPut("{id:long}")]
+    public async Task<IActionResult> Update(long id, [FromBody] UpdateNotificacionDto notificacion)
+    {
+        var response = await _sender.Send(new UpdateNotificacionCommand(id, notificacion));
+        if (!response.Success || response.Data is null)
+            return NotFound(response);
+
+        return Ok(response.Data);
+    }
+
+    /// <summary>
+    /// Elimina una notificación existente.
+    /// </summary>
+    [HttpDelete("{id:long}")]
+    public async Task<IActionResult> Delete(long id)
+    {
+        var response = await _sender.Send(new DeleteNotificacionCommand(id));
+        if (!response.Success)
+            return NotFound(response);
+
+        return NoContent();
     }
 
     /// <summary>
@@ -135,6 +189,7 @@ public class NotificacionesController : ControllerBase
         notif.DetalleRespuesta = $"Reintento exitoso manual vía {notif.Canal} - ACK-RETRY-{Guid.NewGuid().ToString()[..6].ToUpper()}";
 
         await _notificacionRepository.UpdateAsync(notif);
+        await _historialReporter.ReportarEnvioAsync(notif.ToEnviadaEvent());
 
         return Ok(notif);
     }

@@ -1,10 +1,10 @@
 ﻿using MediatR;
-using MedicalAppointments.Domain.Citas.Entities;
+using MedicalAppointments.Core.Citas.DTOs;
 using MedicalAppointments.Domain.Citas.Interfaces;
 
 namespace MedicalAppointments.Core.Citas.Queries.GetCitaById;
 
-public class GetCitaByIdQueryHandler : IRequestHandler<GetCitaByIdQuery, Cita?>
+public class GetCitaByIdQueryHandler : IRequestHandler<GetCitaByIdQuery, GetCitaDto?>
 {
     private readonly ICitaRepository _citaRepository;
 
@@ -13,8 +13,9 @@ public class GetCitaByIdQueryHandler : IRequestHandler<GetCitaByIdQuery, Cita?>
         _citaRepository = citaRepository;
     }
 
-    public async Task<Cita?> Handle(GetCitaByIdQuery request, CancellationToken cancellationToken)
+    public async Task<GetCitaDto?> Handle(GetCitaByIdQuery request, CancellationToken cancellationToken)
     {
-        return await _citaRepository.GetByIdAsync(request.CitaID);
+        var cita = await _citaRepository.GetByIdAsync(request.CitaID);
+        return cita?.ToDto();
     }
 }

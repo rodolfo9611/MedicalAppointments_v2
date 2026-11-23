@@ -1,3 +1,1168 @@
+<!-- ===== NUEVA EXPERIENCIA CLÍNICA ===== -->
+<div class="clinical-app" *ngIf="!devMode">
+  <div class="sidebar-backdrop" *ngIf="sidebarAbierta" (click)="toggleSidebar()" aria-hidden="true"></div>
+  <aside class="clinical-sidebar" [class.open]="sidebarAbierta">
+    <div class="sidebar-brand">
+      <div class="brand-mark">✚</div>
+      <div class="brand-copy">
+        <strong>MediCare Hub</strong>
+        <span>Centro Clínico</span>
+      </div>
+      <button class="sidebar-close" (click)="toggleSidebar()" aria-label="Cerrar menú">×</button>
+    </div>
+
+    <div class="sidebar-section-title">Operación clínica</div>
+
+    <button class="nav-item" [class.active]="vistaClinica === 'dashboard'" (click)="activarVista('dashboard')">
+      <span class="nav-icon">◫</span><span class="nav-label">Dashboard</span>
+    </button>
+    <button class="nav-item nav-create" (click)="abrirNuevaCita()">
+      <span class="nav-icon">＋</span><span class="nav-label">Nueva cita</span>
+    </button>
+    <button class="nav-item" [class.active]="vistaClinica === 'agenda'" (click)="activarVista('agenda')">
+      <span class="nav-icon">▦</span><span class="nav-label">Agenda Médica</span>
+      <span class="nav-badge">{{ numeroBadgeCitas }}</span>
+    </button>
+    <button class="nav-item" [class.active]="vistaClinica === 'pacientes'" (click)="activarVista('pacientes')">
+      <span class="nav-icon">◎</span><span class="nav-label">Pacientes</span>
+      <span class="nav-badge">{{ numeroBadgePacientes }}</span>
+    </button>
+    <button class="nav-item" [class.active]="vistaClinica === 'historial'" (click)="activarVista('historial')">
+      <span class="nav-icon">◷</span><span class="nav-label">Historial Clínico</span>
+    </button>
+    <button class="nav-item" [class.active]="vistaClinica === 'recetas'" (click)="activarVista('recetas')">
+      <span class="nav-icon">℞</span><span class="nav-label">Recetas</span>
+    </button>
+    <button class="nav-item" [class.active]="vistaClinica === 'notificaciones'" (click)="activarVista('notificaciones')">
+      <span class="nav-icon">✉</span><span class="nav-label">Notificaciones</span>
+    </button>
+    <button class="nav-item" [class.active]="vistaClinica === 'reportes'" (click)="activarVista('reportes')">
+      <span class="nav-icon">▥</span><span class="nav-label">Reportes</span>
+    </button>
+
+    <div class="sidebar-footer">
+      <button class="dev-link" (click)="toggleDevMode(true)">⚙ Modo desarrollador / API Console</button>
+    </div>
+  </aside>
+
+  <div class="clinical-main">
+    <header class="clinical-topbar">
+      <div class="topbar-left">
+        <button class="back-button back-clinical" (click)="retroceder()" [disabled]="!puedeRetroceder && vistaClinica === 'dashboard'" [title]="etiquetaRetroceso" aria-label="Retroceder">
+          <span class="back-label">Volver</span>
+        </button>
+        <button class="icon-button" (click)="toggleSidebar()" [attr.aria-expanded]="sidebarAbierta" aria-label="Abrir menú">☰</button>
+        <div class="topbar-title">
+          <small>Espacio de trabajo</small>
+          <strong>{{ tituloVista }}</strong>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <span class="date-chip">{{ fechaHoyTexto }}</span>
+        <div class="avatar">MC</div>
+      </div>
+    </header>
+
+    <main class="clinical-content">
+      <div *ngIf="avisoPrincipal" class="global-success-banner" role="status">
+        <span class="global-success-icon">✓</span>
+        <span class="global-success-text">{{ avisoPrincipal }}</span>
+        <button class="global-success-close" (click)="cerrarAvisoPrincipal()" aria-label="Cerrar aviso">×</button>
+      </div>
+
+      <section *ngIf="vistaClinica === 'dashboard'">
+        <div class="dashboard-hero">
+          <div>
+            <div class="hero-eyebrow">Centro de operaciones</div>
+            <h1>{{ saludo }}, Equipo Clínico</h1>
+            <p>{{ fechaHoyTexto }}</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-clinical ghost" (click)="activarVista('agenda'); seleccionarModoAgenda('calendario')">Ver calendario</button>
+            <button class="btn-clinical primary" (click)="abrirNuevaCita()">＋ Crear cita</button>
+          </div>
+        </div>
+
+        <div *ngIf="errorDashboard" class="error-banner">{{ errorDashboard }}</div>
+
+        <div class="kpi-grid" [class.skeleton]="cargandoDashboard">
+          <ng-container *ngIf="!cargandoDashboard; else cargandoKpis">
+            <button type="button" class="kpi-card kpi-clickable" *ngFor="let kpi of kpis" [ngClass]="'tono-' + kpi.tono" (click)="abrirKpi(kpi)" [title]="'Ver: ' + kpi.etiqueta">
+              <span class="kpi-icon">{{ kpi.icono }}</span>
+              <span class="kpi-label">{{ kpi.etiqueta }}</span>
+              <span class="kpi-value">{{ kpi.valor }}</span>
+              <span class="kpi-detail">{{ kpi.detalle }}</span>
+              <span class="kpi-go" aria-hidden="true">→</span>
+            </button>
+          </ng-container>
+          <ng-template #cargandoKpis>
+            <div class="kpi-card skeleton" *ngFor="let item of [1,2,3,4,5,6,7,8,9,10]"></div>
+          </ng-template>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Distribución de citas</h3>
+                <p class="panel-subtitle">Estado actual del flujo clínico</p>
+              </div>
+              <span class="panel-badge">{{ totalCitasDashboard }} citas</span>
+            </div>
+            <div class="panel-body">
+              <div class="donut-layout">
+                <div class="donut" [style.background]="donutGradient">
+                  <div class="donut-center">
+                    <strong>{{ totalCitasDashboard }}</strong>
+                    <span>Total</span>
+                  </div>
+                </div>
+                <div class="donut-legend">
+                  <div class="legend-item" *ngFor="let estado of estadosDashboard">
+                    <span class="legend-dot" [style.background]="estado.color"></span>
+                    <span class="legend-label">{{ estado.nombre }}</span>
+                    <span class="legend-value">{{ estado.cantidad }} · {{ estado.porcentaje }}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Notificaciones por canal</h3>
+                <p class="panel-subtitle">Efectividad del despacho automático</p>
+              </div>
+              <span class="panel-badge">{{ statsDashboard?.totalNotificaciones || 0 }} envíos</span>
+            </div>
+            <div class="panel-body">
+              <div class="bar-list" *ngIf="canalesDashboard.length; else sinCanales">
+                <div class="bar-row" *ngFor="let canal of canalesDashboard">
+                  <div class="bar-meta">
+                    <span>{{ canal.canal }}</span>
+                    <span>{{ canal.cantidad }} · {{ canal.porcentaje }}%</span>
+                  </div>
+                  <div class="bar-track"><div class="bar-fill" [style.width.%]="canal.porcentaje"></div></div>
+                </div>
+              </div>
+              <ng-template #sinCanales>
+                <div class="empty-state">Aún no hay actividad de notificaciones.</div>
+              </ng-template>
+              <div class="effectiveness">
+                <span>Tasa de efectividad</span>
+                <strong>{{ tasaEfectividad }}%</strong>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel narrow">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Actividad reciente</h3>
+                <p class="panel-subtitle">Citas, recetas y notificaciones</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="activity-list" *ngIf="actividadReciente.length; else sinActividad">
+                <div class="activity-item" *ngFor="let item of actividadReciente" [ngClass]="'tono-' + item.tono">
+                  <div class="activity-icon">{{ item.icono }}</div>
+                  <div class="activity-body">
+                    <strong>{{ item.titulo }}</strong>
+                    <span>{{ item.detalle }}</span>
+                    <time>{{ formatearFechaCorta(item.fecha) }}</time>
+                  </div>
+                </div>
+              </div>
+              <ng-template #sinActividad>
+                <div class="empty-state">Todavía no hay actividad reciente.</div>
+              </ng-template>
+            </div>
+          </article>
+
+          <article class="panel wide">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Tendencia semanal</h3>
+                <p class="panel-subtitle">Citas y recetas de los últimos 7 días</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="chart">
+                <div class="chart-column" *ngFor="let punto of tendenciaSemanal">
+                  <div class="chart-bar-stack">
+                    <div class="chart-bar-total" [style.height.%]="punto.altura">
+                      <div class="bar-segment recetas" [style.height.%]="punto.total ? (punto.recetas / punto.total) * 100 : 0"></div>
+                      <div class="bar-segment citas" [style.height.%]="punto.total ? (punto.citas / punto.total) * 100 : 0"></div>
+                    </div>
+                  </div>
+                  <span class="chart-label">{{ punto.etiqueta }}</span>
+                </div>
+              </div>
+              <div class="chart-legend">
+                <span><i style="background:#2563eb"></i> Citas</span>
+                <span><i style="background:#16a34a"></i> Recetas</span>
+              </div>
+            </div>
+          </article>
+
+          <article class="panel wide">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Tendencia mensual</h3>
+                <p class="panel-subtitle">Comparativo de los últimos 6 meses</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div class="chart">
+                <div class="chart-column" *ngFor="let punto of tendenciaMensual">
+                  <div class="chart-bar-stack">
+                    <div class="chart-bar-total" [style.height.%]="punto.altura">
+                      <div class="bar-segment recetas" [style.height.%]="punto.total ? (punto.recetas / punto.total) * 100 : 0"></div>
+                      <div class="bar-segment citas" [style.height.%]="punto.total ? (punto.citas / punto.total) * 100 : 0"></div>
+                    </div>
+                  </div>
+                  <span class="chart-label">{{ punto.etiqueta }}</span>
+                </div>
+              </div>
+              <div class="chart-legend">
+                <span><i style="background:#2563eb"></i> Citas</span>
+                <span><i style="background:#16a34a"></i> Recetas</span>
+              </div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- ============================ AGENDA ============================ -->
+      <section *ngIf="vistaClinica === 'agenda'" class="agenda-page">
+        <div class="dashboard-hero">
+          <div>
+            <div class="hero-eyebrow">Coordinación de agenda</div>
+            <h1>Agenda Médica</h1>
+            <p>Calendario, distribución horaria y flujo clínico en un solo lugar</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-clinical back-clinical" (click)="retroceder()" [title]="etiquetaRetroceso">
+              <span>{{ etiquetaRetroceso }}</span>
+            </button>
+            <button class="btn-clinical primary" (click)="abrirNuevaCita()">＋ Crear cita</button>
+            <button class="btn-clinical" [class.primary]="modoAgenda === 'calendario'" [class.ghost]="modoAgenda !== 'calendario'" (click)="seleccionarModoAgenda('calendario')">Mes</button>
+            <button class="btn-clinical" [class.primary]="modoAgenda === 'semana'" [class.ghost]="modoAgenda !== 'semana'" (click)="seleccionarModoAgenda('semana')">Semana</button>
+            <button class="btn-clinical" [class.primary]="modoAgenda === 'kanban'" [class.ghost]="modoAgenda !== 'kanban'" (click)="seleccionarModoAgenda('kanban')">Kanban</button>
+          </div>
+        </div>
+
+        <div class="agenda-toolbar">
+          <div class="agenda-search">
+            <span>⌕</span>
+            <input type="text" [(ngModel)]="busquedaAgenda" placeholder="Buscar paciente, médico, especialidad o motivo" />
+          </div>
+          <select [(ngModel)]="filtroMedicoAgenda" class="agenda-select">
+            <option value="">Todos los médicos</option>
+            <option *ngFor="let medico of medicosAgenda" [value]="medico">{{ medico }}</option>
+          </select>
+          <span class="agenda-count">{{ citasAgendaFiltradas.length }} citas</span>
+        </div>
+
+        <!-- Calendario mensual -->
+        <div *ngIf="modoAgenda === 'calendario'" class="panel agenda-panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">{{ mesCalendarioTexto }}</h3>
+              <p class="panel-subtitle">Selecciona una cita para ver su detalle</p>
+            </div>
+            <div class="calendar-nav">
+              <button class="icon-button" (click)="cambiarMes(-1)">‹</button>
+              <button class="btn-clinical ghost" (click)="irHoyCalendario()">Hoy</button>
+              <button class="icon-button" (click)="cambiarMes(1)">›</button>
+            </div>
+          </div>
+          <div class="panel-body calendar-body">
+            <div class="weekday-row">
+              <span *ngFor="let dia of ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']">{{ dia }}</span>
+            </div>
+            <div class="calendar-grid">
+              <div class="calendar-day" *ngFor="let dia of diasCalendario" [class.otro-mes]="dia.mesDistinto" [class.hoy]="dia.hoy">
+                <div class="calendar-day-number">{{ dia.numero }}</div>
+                <div class="calendar-appointments">
+                  <button class="calendar-appointment" *ngFor="let cita of dia.citas.slice(0, 3)" (click)="abrirCita(cita)" [ngClass]="'tono-' + tonosEstados[estadoDe(cita)]">
+                    <span>{{ formatearHora(cita.fechaHoraInicio) }}</span>
+                    <strong>{{ nombrePaciente(cita.pacienteID) }}</strong>
+                  </button>
+                  <span class="calendar-more" *ngIf="dia.citas.length > 3">+{{ dia.citas.length - 3 }} más</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calendario semanal -->
+        <div *ngIf="modoAgenda === 'semana'" class="panel agenda-panel">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Próximos 7 días</h3>
+              <p class="panel-subtitle">Distribución por hora, médico y paciente</p>
+            </div>
+          </div>
+          <div class="panel-body week-body">
+            <div class="week-grid">
+              <div class="week-corner"></div>
+              <div class="week-day" *ngFor="let dia of diasSemana" [class.hoy]="dia.hoy">
+                <small>{{ dia.etiqueta }}</small>
+                <strong>{{ dia.numero }}</strong>
+              </div>
+
+              <ng-container *ngFor="let hora of horasAgenda">
+                <div class="week-hour">{{ hora }}:00</div>
+                <div class="week-cell" *ngFor="let dia of diasSemana" [class.hoy]="dia.hoy">
+                  <button class="week-appointment" *ngFor="let cita of citasEnHora(dia.fecha, hora)" (click)="abrirCita(cita)" [ngClass]="'tono-' + tonosEstados[estadoDe(cita)]">
+                    <strong>{{ nombrePaciente(cita.pacienteID) }}</strong>
+                    <span>{{ medicoVisible(cita) }}</span>
+                    <em>{{ etiquetaEstado(estadoDe(cita)) }}</em>
+                  </button>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kanban por estado -->
+        <div *ngIf="modoAgenda === 'kanban'" class="kanban-board">
+          <div class="kanban-column" *ngFor="let columna of columnasKanban" [ngClass]="'tono-' + columna.tono">
+            <div class="kanban-header">
+              <span class="kanban-dot" [style.background]="columna.color"></span>
+              <strong>{{ columna.nombre }}</strong>
+              <span class="kanban-count">{{ columna.citas.length }}</span>
+            </div>
+            <div class="kanban-cards">
+              <button class="kanban-card" *ngFor="let cita of columna.citas" (click)="abrirCita(cita)">
+                <span class="kanban-time">{{ formatearHora(cita.fechaHoraInicio) }}</span>
+                <strong>{{ nombrePaciente(cita.pacienteID) }}</strong>
+                <span>{{ medicoVisible(cita) }}</span>
+                <small>{{ cita.especialidad || 'Sin especialidad' }}</small>
+              </button>
+              <div class="empty-state" *ngIf="!columna.citas.length">Sin citas en este estado</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================== PACIENTES =========================== -->
+      <section *ngIf="vistaClinica === 'pacientes'" class="module-page">
+        <div class="dashboard-hero">
+          <div>
+            <div class="hero-eyebrow">Base clínica</div>
+            <h1>Pacientes</h1>
+            <p>Fichas visuales, contacto y acceso directo a historial y agenda</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-clinical back-clinical" (click)="retroceder()" [title]="etiquetaRetroceso">
+              <span>{{ etiquetaRetroceso }}</span>
+            </button>
+            <button class="btn-clinical ghost" (click)="cargarDashboard()">↻ Actualizar</button>
+            <button class="btn-clinical primary" (click)="abrirPaciente()">＋ Nuevo paciente</button>
+          </div>
+        </div>
+
+        <div *ngIf="mensajePaciente" class="info-banner">{{ mensajePaciente }}</div>
+
+        <div class="module-toolbar">
+          <div class="module-search">
+            <span>⌕</span>
+            <input type="text" [(ngModel)]="busquedaPacientes" placeholder="Buscar por nombre, código, documento o teléfono" />
+          </div>
+          <select [(ngModel)]="filtroEstadoPaciente" class="module-select">
+            <option value="">Todos los estados</option>
+            <option value="con-citas">Con citas</option>
+            <option value="sin-citas">Sin citas</option>
+            <option value="atendidos">Atendidos</option>
+            <option value="seguimiento">En seguimiento</option>
+          </select>
+          <span class="module-count">{{ pacientesFiltrados.length }} pacientes</span>
+        </div>
+
+        <div class="patient-grid" *ngIf="pacientesFiltrados.length; else sinPacientes">
+          <article class="patient-card" *ngFor="let paciente of pacientesFiltrados" [ngClass]="'tono-' + paciente.tono">
+            <div class="patient-card-head">
+              <div class="patient-avatar">{{ paciente.inicial }}</div>
+              <div class="patient-card-info">
+                <strong>{{ paciente.nombre }}</strong>
+                <span>{{ paciente.codigo }} · {{ paciente.documento }}</span>
+              </div>
+              <span class="badge">{{ paciente.estado }}</span>
+            </div>
+
+            <div class="patient-card-meta">
+              <span>☎ {{ paciente.telefono }}</span>
+              <span>✉ {{ paciente.correo }}</span>
+              <span>◷ Última consulta: {{ paciente.ultimaConsulta }}</span>
+              <span *ngIf="paciente.edad !== null">◎ {{ paciente.edad }} años</span>
+            </div>
+
+            <div class="patient-card-stats">
+              <div><strong>{{ paciente.totalCitas }}</strong><span>Citas</span></div>
+              <div><strong>{{ paciente.totalRecetas }}</strong><span>Recetas</span></div>
+            </div>
+
+            <div class="patient-card-actions">
+              <button class="btn-clinical ghost" (click)="verHistorialPaciente(paciente.id)">Historial</button>
+              <button class="btn-clinical ghost" (click)="verRecetasPaciente(paciente.id)">Recetas</button>
+              <button class="btn-clinical ghost" (click)="filtrarAgendaPorPaciente(paciente.id)">Agenda</button>
+              <button class="btn-clinical primary" (click)="editarPacienteDesdeCard(paciente.id)">Editar</button>
+            </div>
+          </article>
+        </div>
+
+        <ng-template #sinPacientes>
+          <div class="panel">
+            <div class="empty-state">No hay pacientes que coincidan con los filtros seleccionados.</div>
+          </div>
+        </ng-template>
+      </section>
+
+      <!-- ======================== HISTORIAL CLÍNICO ===================== -->
+      <section *ngIf="vistaClinica === 'historial'" class="module-page">
+        <div class="dashboard-hero">
+          <div>
+            <div class="hero-eyebrow">Trazabilidad clínica</div>
+            <h1>Historial Clínico</h1>
+            <p>Línea de tiempo de atenciones, recetas, reprogramaciones y notificaciones</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-clinical back-clinical" (click)="retroceder()" [title]="etiquetaRetroceso">
+              <span>{{ etiquetaRetroceso }}</span>
+            </button>
+            <button class="btn-clinical ghost" (click)="cargarHistorialClinico()" [disabled]="!pacienteHistorialSeleccionado">↻ Actualizar</button>
+          </div>
+        </div>
+
+        <div class="timeline-layout">
+          <aside class="panel timeline-side">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Paciente</h3>
+                <p class="panel-subtitle">Seleccione desde el catálogo</p>
+              </div>
+            </div>
+            <div class="panel-body">
+              <label class="field-label">Paciente</label>
+              <select class="module-select full timeline-paciente-select" [ngModel]="pacienteHistorialSeleccionado" (ngModelChange)="seleccionarPacienteHistorial($event)">
+                <option [ngValue]="null">Seleccione un paciente</option>
+                <option *ngFor="let paciente of pacientesDashboard" [ngValue]="idPaciente(paciente)">
+                  {{ paciente.nombreCompleto }} · {{ paciente.codigoPaciente }}
+                </option>
+              </select>
+
+              <div *ngIf="pacienteHistorialActual as paciente" class="timeline-patient">
+                <div class="patient-avatar">{{ inicialNombre(paciente.nombreCompleto) }}</div>
+                <div>
+                  <strong>{{ paciente.nombreCompleto }}</strong>
+                  <span>{{ paciente.codigoPaciente }} · {{ paciente.documento }}</span>
+                  <span>{{ paciente.telefono || 'Sin teléfono' }}</span>
+                </div>
+              </div>
+
+              <div class="timeline-form">
+                <h4>Registrar evento</h4>
+                <div class="timeline-form-grid">
+                  <div class="field">
+                    <label class="field-label">Tipo de evento</label>
+                    <select class="module-select full" [(ngModel)]="nuevoEventoHistorial.tipoEvento">
+                      <option *ngFor="let tipo of tiposEventoHistorial" [value]="tipo">{{ tipo }}</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label class="field-label">Fecha</label>
+                    <input class="module-input" type="datetime-local" [(ngModel)]="nuevoEventoHistorial.fechaEvento" />
+                  </div>
+                  <div class="field full">
+                    <label class="field-label">Descripción</label>
+                    <textarea class="module-textarea" rows="2" [(ngModel)]="nuevoEventoHistorial.descripcion" placeholder="Descripción clínica del evento"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label class="field-label">Cita relacionada (opcional)</label>
+                    <select class="module-select full" [(ngModel)]="nuevoEventoHistorial.citaID">
+                      <option [ngValue]="null">Sin cita</option>
+                      <option *ngFor="let cita of citasDashboard" [ngValue]="cita.citaID">
+                        Cita #{{ cita.citaID }} · {{ nombrePaciente(cita.pacienteID) }} · {{ formatearFechaCorta(cita.fechaHoraInicio) }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="field full">
+                    <button class="btn-clinical primary full" (click)="registrarEventoHistorialClinico()" [disabled]="!pacienteHistorialSeleccionado">Registrar evento</button>
+                  </div>
+                </div>
+              </div>
+
+              <div *ngIf="mensajeHistorial" class="info-banner small">{{ mensajeHistorial }}</div>
+            </div>
+          </aside>
+
+          <article class="panel timeline-main">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Línea de tiempo</h3>
+                <p class="panel-subtitle">
+                  {{ pacienteHistorialNombre ? 'Historial de ' + pacienteHistorialNombre : 'Seleccione un paciente para comenzar' }}
+                </p>
+              </div>
+              <span class="panel-badge">{{ eventosHistorialVisibles.length }} eventos</span>
+            </div>
+            <div class="panel-body">
+              <div class="module-toolbar compact" *ngIf="pacienteHistorialSeleccionado">
+                <div class="module-search">
+                  <span>⌕</span>
+                  <input type="text" [(ngModel)]="busquedaHistorial" placeholder="Buscar en el historial" />
+                </div>
+                <select [(ngModel)]="filtroTipoHistorial" class="module-select">
+                  <option value="">Todos los tipos</option>
+                  <option *ngFor="let tipo of tiposHistorial" [value]="tipo">{{ tipo }}</option>
+                </select>
+              </div>
+
+              <div *ngIf="historialCargando" class="empty-state">Cargando historial clínico…</div>
+
+              <div class="timeline-list" *ngIf="!historialCargando && eventosHistorialVisibles.length; else sinEventos">
+                <article class="timeline-item" *ngFor="let evento of eventosHistorialVisibles" [ngClass]="'tono-' + evento.tono">
+                  <div class="timeline-marker">{{ evento.icono }}</div>
+                  <div class="timeline-content">
+                    <div class="timeline-head">
+                      <strong>{{ evento.titulo }}</strong>
+                      <time>{{ formatearFechaCorta(evento.fecha) }} · {{ formatearHora(evento.fecha) }}</time>
+                    </div>
+                    <p>{{ evento.descripcion }}</p>
+                    <div class="timeline-tags">
+                      <span class="badge">{{ evento.tipo }}</span>
+                      <span *ngIf="evento.citaID" class="badge">Cita #{{ evento.citaID }}</span>
+                      <span *ngIf="evento.recetaID" class="badge">Receta #{{ evento.recetaID }}</span>
+                    </div>
+                    <button *ngIf="evento.citaID" class="link-button" (click)="abrirCitaDesdeHistorial(evento.citaID)">Ver cita relacionada →</button>
+                  </div>
+                </article>
+              </div>
+
+              <ng-template #sinEventos>
+                <div class="empty-state" *ngIf="!historialCargando">
+                  {{ pacienteHistorialSeleccionado ? 'No hay eventos registrados para este paciente.' : 'Seleccione un paciente para ver su línea de tiempo clínica.' }}
+                </div>
+              </ng-template>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- =========================== RECETAS ============================ -->
+      <section *ngIf="vistaClinica === 'recetas'" class="module-page">
+        <div class="dashboard-hero">
+          <div>
+            <div class="hero-eyebrow">Prescripción clínica</div>
+            <h1>Recetas Médicas</h1>
+            <p>Emisión desde citas concluidas, impresión y anulación lógica trazable</p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-clinical back-clinical" (click)="retroceder()" [title]="etiquetaRetroceso">
+              <span>{{ etiquetaRetroceso }}</span>
+            </button>
+            <button class="btn-clinical ghost" (click)="cargarRecetas()">↻ Actualizar</button>
+          </div>
+        </div>
+
+        <div *ngIf="mensajeRecetas" class="info-banner">{{ mensajeRecetas }}</div>
+
+        <article class="panel receta-emitir" *ngIf="citasConcluidasDisponibles.length">
+          <div class="panel-header">
+            <div>
+              <h3 class="panel-title">Emitir receta</h3>
+              <p class="panel-subtitle">Solo citas Concluida sin receta vigente</p>
+            </div>
+            <span class="panel-badge">{{ citasConcluidasDisponibles.length }} citas disponibles</span>
+          </div>
+          <div class="panel-body">
+            <div class="receta-emitir-grid">
+              <div class="field">
+                <label class="field-label">Cita concluida</label>
+                <select class="module-select full" [(ngModel)]="recetaEmissionCitaID">
+                  <option [ngValue]="null">Seleccione una cita</option>
+                  <option *ngFor="let cita of citasConcluidasDisponibles" [ngValue]="cita.citaID">
+                    #{{ cita.citaID }} · {{ nombrePaciente(cita.pacienteID) }} · {{ formatearFechaCorta(cita.fechaHoraInicio) }}
+                  </option>
+                </select>
+              </div>
+              <div class="field"><label class="field-label">Diagnóstico</label><input class="module-input" [(ngModel)]="bodyReceta.diagnostico" placeholder="Diagnóstico" /></div>
+              <div class="field"><label class="field-label">Indicaciones</label><input class="module-input" [(ngModel)]="bodyReceta.indicaciones" placeholder="Indicaciones" /></div>
+              <div class="field"><label class="field-label">Tratamiento</label><input class="module-input" [(ngModel)]="bodyReceta.tratamiento" placeholder="Tratamiento" /></div>
+              <div class="field"><label class="field-label">Observaciones</label><input class="module-input" [(ngModel)]="bodyReceta.observaciones" placeholder="Opcional" /></div>
+              <div class="field align-end"><button class="btn-clinical primary full" (click)="emitirRecetaDesdeModulo()">Emitir receta</button></div>
+            </div>
+          </div>
+        </article>
+
+        <div class="module-toolbar">
+          <div class="module-search">
+            <span>⌕</span>
+            <input type="text" [(ngModel)]="busquedaRecetas" placeholder="Buscar por paciente, diagnóstico o cita" />
+          </div>
+          <select [(ngModel)]="pacienteRecetasFiltro" class="module-select">
+            <option [ngValue]="null">Todos los pacientes</option>
+            <option *ngFor="let pac of pacientesConRecetas" [ngValue]="idPaciente(pac)">{{ pac.nombreCompleto }}</option>
+          </select>
+          <label class="check-filter">
+            <input type="checkbox" [(ngModel)]="incluirAnuladasRecetas" />
+            <span>Incluir anuladas</span>
+          </label>
+          <span class="module-count">{{ recetasFiltradas.length }} recetas</span>
+        </div>
+
+        <div class="receta-grid" *ngIf="recetasFiltradas.length; else sinRecetas">
+          <article class="receta-card" *ngFor="let receta of recetasFiltradas" [ngClass]="{ anulada: receta.anulada }">
+            <div class="receta-head">
+              <div class="receta-icon">℞</div>
+              <div class="receta-title">
+                <strong>Receta #{{ receta.id }}</strong>
+                <span>{{ receta.paciente }} · Cita #{{ receta.citaID }}</span>
+              </div>
+              <span class="badge" [ngClass]="receta.anulada ? 'tono-slate' : 'tono-green'">
+                {{ receta.anulada ? 'Anulada' : 'Vigente' }}
+              </span>
+            </div>
+
+            <div class="receta-body">
+              <div><span>Diagnóstico</span><strong>{{ receta.diagnostico }}</strong></div>
+              <div><span>Tratamiento</span><strong>{{ receta.tratamiento }}</strong></div>
+              <div><span>Indicaciones</span><strong>{{ receta.indicaciones }}</strong></div>
+              <div *ngIf="receta.observaciones"><span>Observaciones</span><strong>{{ receta.observaciones }}</strong></div>
+              <div><span>Médico</span><strong>{{ receta.medico }} · {{ receta.especialidad }}</strong></div>
+              <div><span>Fecha</span><strong>{{ formatearFechaCorta(receta.fecha) }}</strong></div>
+              <div *ngIf="receta.anulada && receta.motivoAnulacion"><span>Motivo de anulación</span><strong>{{ receta.motivoAnulacion }}</strong></div>
+            </div>
+
+            <div class="receta-actions-inline" *ngIf="!receta.anulada">
+              <button class="btn-clinical ghost" (click)="verRecetaCard(receta)">Ver</button>
+              <button class="btn-clinical ghost" (click)="imprimirRecetaCard(receta)">Imprimir</button>
+              <button class="btn-clinical danger" (click)="prepararAnulacionReceta(receta.id)">Anular</button>
+            </div>
+
+            <div class="anulacion-form" *ngIf="recetaAnulandoId === receta.id">
+              <label class="field-label">Motivo de anulación</label>
+              <input class="module-input" [(ngModel)]="motivoAnulacion" placeholder="Motivo de la anulación" />
+              <div class="anulacion-actions">
+                <button class="btn-clinical ghost" (click)="cancelarAnulacionReceta()">Cancelar</button>
+                <button class="btn-clinical danger" (click)="anularRecetaClinica()">Confirmar anulación</button>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <ng-template #sinRecetas>
+          <div class="panel"><div class="empty-state">No hay recetas que coincidan con los filtros seleccionados.</div></div>
+        </ng-template>
+      </section>
+
+      <!-- ======================= NOTIFICACIONES ========================= -->
+      <section *ngIf="vistaClinica === 'notificaciones'" class="module-page">
+        <div class="dashboard-hero">
+          <div>
+            <div class="hero-eyebrow">Comunicación clínica</div>
+            <h1>Centro de Notificaciones</h1>
+            <p>Recordatorios, confirmaciones y reintentos de envío en un solo lugar <span class="sim-chip">Modo simulación</span></p>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-clinical back-clinical" (click)="retroceder()" [title]="etiquetaRetroceso">
+              <span>{{ etiquetaRetroceso }}</span>
+            </button>
+            <button class="btn-clinical ghost" (click)="cargarNotificacionesClinicas()">↻ Actualizar</button>
+          </div>
+        </div>
+
+        <div class="notif-stats">
+          <div class="notif-stat tono-blue"><span>Total</span><strong>{{ statsDashboard?.totalNotificaciones || notificacionesDashboard.length }}</strong></div>
+          <div class="notif-stat tono-green"><span>Enviadas</span><strong>{{ statsDashboard?.enviadas || 0 }}</strong></div>
+          <div class="notif-stat tono-amber"><span>Pendientes</span><strong>{{ notificacionesPendientes }}</strong></div>
+          <div class="notif-stat tono-slate"><span>Fallidas</span><strong>{{ notificacionesFallidas }}</strong></div>
+          <div class="notif-stat tono-violet"><span>Efectividad</span><strong>{{ tasaEfectividad }}%</strong></div>
+        </div>
+
+        <div *ngIf="mensajeNotificaciones" class="info-banner">{{ mensajeNotificaciones }}</div>
+
+        <div class="module-toolbar">
+          <div class="module-search">
+            <span>⌕</span>
+            <input type="text" [(ngModel)]="busquedaNotificaciones" placeholder="Buscar por paciente, tipo, estado o mensaje" />
+          </div>
+          <select [(ngModel)]="filtroTipoNotificacion" class="module-select">
+            <option value="">Todos los tipos</option>
+            <option *ngFor="let tipo of tiposNotificacionDisponibles" [value]="tipo">{{ tipo }}</option>
+          </select>
+          <select [(ngModel)]="filtroEstadoNotificacion" class="module-select">
+            <option value="">Todos los estados</option>
+            <option *ngFor="let estado of estadosNotificacion" [value]="estado">{{ estado }}</option>
+          </select>
+          <select [(ngModel)]="filtroCanalNotificacion" class="module-select">
+            <option value="">Todos los canales</option>
+            <option *ngFor="let canal of canalesNotificacion" [value]="canal">{{ canal }}</option>
+          </select>
+          <span class="module-count">{{ notificacionesFiltradas.length }} envíos</span>
+        </div>
+
+        <div class="notif-grid" *ngIf="notificacionesFiltradas.length; else sinNotificaciones">
+          <article class="notif-card" *ngFor="let notif of notificacionesFiltradas" [ngClass]="'tono-' + notif.tono">
+            <div class="notif-head">
+              <div class="notif-icon">{{ notif.icono }}</div>
+              <div class="notif-title">
+                <strong>{{ notif.titulo }}</strong>
+                <span>{{ notif.paciente }} · {{ notif.canal }}</span>
+              </div>
+              <span class="badge">{{ notif.estado }}</span>
+            </div>
+            <p class="notif-message">{{ notif.mensaje }}</p>
+            <div class="notif-meta">
+              <span>✉ {{ notif.destinatario }}</span>
+              <span>◷ {{ formatearFechaCorta(notif.fecha) }} {{ formatearHora(notif.fecha) }}</span>
+              <span>↻ {{ notif.intentos }} intentos</span>
+            </div>
+            <div class="notif-actions">
+              <button class="btn-clinical ghost" (click)="reintentarNotificacionClinica(notif.id)"
+                      [disabled]="notificacionReintentandoId === notif.id || notif.estado === 'Enviado'">
+                {{ notificacionReintentandoId === notif.id ? 'Reintentando…' : 'Reintentar envío' }}
+              </button>
+              <details class="notif-detail">
+                <summary>Ver detalle</summary>
+                <p>{{ notif.mensaje }}</p>
+                <small>ID #{{ notif.id }} · Tipo: {{ notif.tipo }}</small>
+              </details>
+            </div>
+          </article>
+        </div>
+
+        <ng-template #sinNotificaciones>
+          <div class="panel"><div class="empty-state">No hay notificaciones que coincidan con los filtros seleccionados.</div></div>
+        </ng-template>
+      </section>
+
+      <!-- =========================== REPORTES =========================== -->
+      <section *ngIf="vistaClinica === 'reportes'" class="module-page">
+        <div class="dashboard-hero">
+          <div>
+            <div class="hero-eyebrow">Inteligencia operativa</div>
+            <h1>Reportes de Gestión</h1>
+          </div>
+          <div class="hero-actions">
+            <button class="btn-clinical ghost" (click)="activarVista('dashboard')" title="Ir al inicio">Inicio</button>
+            <button class="btn-clinical ghost" (click)="exportarReporteCsv()" [disabled]="!reporteFilas.length">↓ Exportar CSV</button>
+          </div>
+        </div>
+
+        <div class="report-tabs">
+          <button class="report-tab" *ngFor="let tipo of tiposReporte" [class.active]="reporteActivo === tipo" (click)="seleccionarReporte(tipo)">
+            {{ tipo.charAt(0).toUpperCase() + tipo.slice(1) }}
+          </button>
+        </div>
+
+        <article class="panel report-filters">
+          <div class="panel-body">
+            <div class="report-filter-grid">
+              <div class="field">
+                <label class="field-label">Desde</label>
+                <input class="module-input" type="date" [(ngModel)]="reporteDesde" />
+              </div>
+              <div class="field">
+                <label class="field-label">Hasta</label>
+                <input class="module-input" type="date" [(ngModel)]="reporteHasta" />
+              </div>
+              <div class="field" *ngIf="reporteActivo === 'citas' || reporteActivo === 'notificaciones'">
+                <label class="field-label">Estado</label>
+                <select class="module-select full" [(ngModel)]="reporteEstado">
+                  <option value="">Todos</option>
+                  <ng-container *ngIf="reporteActivo === 'citas'">
+                    <option *ngFor="let estado of estados" [value]="estado.codigo">{{ estado.nombre }}</option>
+                  </ng-container>
+                  <ng-container *ngIf="reporteActivo === 'notificaciones'">
+                    <option *ngFor="let estado of estadosNotificacion" [value]="estado">{{ estado }}</option>
+                  </ng-container>
+                </select>
+              </div>
+              <div class="field" *ngIf="reporteActivo === 'notificaciones'">
+                <label class="field-label">Canal</label>
+                <select class="module-select full" [(ngModel)]="reporteCanal">
+                  <option value="">Todos</option>
+                  <option *ngFor="let canal of canalesNotificacion" [value]="canal">{{ canal }}</option>
+                </select>
+              </div>
+              <div class="field align-end">
+                <button class="btn-clinical primary full" (click)="cargarReporteActivo()">Generar reporte</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <div *ngIf="mensajeReportes" class="info-banner">{{ mensajeReportes }}</div>
+
+        <div class="kpi-grid report-kpis" *ngIf="!reportesCargando">
+          <article class="kpi-card" *ngFor="let kpi of reporteKpis" [ngClass]="'tono-' + kpi.tono">
+            <div class="kpi-icon">{{ kpi.icono }}</div>
+            <div class="kpi-label">{{ kpi.etiqueta }}</div>
+            <div class="kpi-value">{{ kpi.valor }}</div>
+            <div class="kpi-detail">{{ kpi.detalle }}</div>
+          </article>
+        </div>
+
+        <div class="report-grid">
+          <article class="panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">{{ reporteTituloDistribucion }}</h3>
+                <p class="panel-subtitle">{{ reporteTitulo }}</p>
+              </div>
+              <span class="panel-badge">{{ reporteFilas.length }} registros</span>
+            </div>
+            <div class="panel-body">
+              <div class="report-bars" *ngIf="reporteCategorias.length; else sinReporte">
+                <div class="report-bar-row" *ngFor="let categoria of reporteCategorias">
+                  <div class="report-bar-meta">
+                    <span>{{ categoria.etiqueta }}</span>
+                    <span>{{ categoria.cantidad }} · {{ categoria.porcentaje }}%</span>
+                  </div>
+                  <div class="bar-track">
+                    <div class="bar-fill" [style.width.%]="categoria.porcentaje" [style.background]="categoria.color"></div>
+                  </div>
+                </div>
+              </div>
+              <ng-template #sinReporte>
+                <div class="empty-state" *ngIf="!reportesCargando">Genere un reporte para ver la distribución.</div>
+              </ng-template>
+              <div *ngIf="reportesCargando" class="empty-state">Generando reporte…</div>
+            </div>
+          </article>
+
+          <article class="panel report-table-panel">
+            <div class="panel-header">
+              <div>
+                <h3 class="panel-title">Registros del reporte</h3>
+                <p class="panel-subtitle">{{ reporteSubtituloDetalle }}</p>
+              </div>
+            </div>
+            <div class="panel-body report-table-wrap">
+              <table class="report-table" *ngIf="reporteFilas.length; else sinDetalle">
+                <thead>
+                  <tr><th *ngFor="let columna of columnasReporte">{{ columna.etiqueta }}</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let fila of reporteFilas">
+                    <td *ngFor="let columna of columnasReporte">{{ valorFila(fila, columna.clave) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <ng-template #sinDetalle>
+                <div class="empty-state" *ngIf="!reportesCargando">No hay registros para mostrar.</div>
+              </ng-template>
+            </div>
+          </article>
+        </div>
+      </section>
+
+<!-- ======================= DRAWER DE DETALLE CITA ======================= -->
+<div class="drawer-backdrop" *ngIf="drawerCitaAbierta" (click)="cerrarDrawer()"></div>
+<aside class="cita-drawer" *ngIf="drawerCitaAbierta">
+  <ng-container *ngIf="citaDrawer as cita">
+    <div class="drawer-header">
+      <div>
+        <span class="drawer-eyebrow">Detalle de cita</span>
+        <h2>Cita #{{ cita.citaID }}</h2>
+      </div>
+      <div class="drawer-header-actions">
+        <button class="drawer-back back-clinical" (click)="retroceder()" [title]="etiquetaRetroceso">
+          <span>Volver</span>
+        </button>
+        <button class="icon-button" (click)="cerrarDrawer()">×</button>
+      </div>
+    </div>
+
+    <div class="drawer-body">
+      <div class="drawer-status" [ngClass]="'tono-' + tonosEstados[estadoDe(cita)]">
+        <span class="badge">{{ etiquetaEstado(estadoDe(cita)) }}</span>
+        <span>{{ cita.especialidad || 'Especialidad no indicada' }}</span>
+      </div>
+
+      <div class="drawer-patient">
+        <div class="patient-avatar">{{ nombrePacienteDrawer.charAt(0) }}</div>
+        <div>
+          <strong>{{ nombrePacienteDrawer }}</strong>
+          <span>☎ {{ pacienteDrawer?.telefono || 'Sin teléfono' }}</span>
+        </div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>Datos de la atención</h4>
+        <dl>
+          <div><dt>Médico</dt><dd>{{ medicoVisible(cita) }}</dd></div>
+          <div><dt>Fecha</dt><dd>{{ formatearFechaCorta(cita.fechaHoraInicio) }}</dd></div>
+          <div><dt>Hora</dt><dd>{{ formatearHora(cita.fechaHoraInicio) }}</dd></div>
+          <div><dt>Motivo</dt><dd>{{ motivoVisible(cita) }}</dd></div>
+        </dl>
+      </div>
+
+      <div class="drawer-section" *ngIf="accionesCita.length">
+        <h4>Avanzar flujo clínico</h4>
+        <div class="drawer-actions">
+          <button class="btn-clinical" *ngFor="let accion of accionesCita" [ngClass]="accion.tono === 'green' ? 'primary' : 'ghost'" (click)="ejecutarTransicionAgenda(accion.destino)">
+            {{ accion.etiqueta }}
+          </button>
+        </div>
+        <div class="attention-row">
+          <label>Secuencia de atención</label>
+          <input type="number" min="1" [(ngModel)]="bodyUpdate.registroAtencion!.secuencia" />
+        </div>
+      </div>
+
+      <div class="drawer-section" *ngIf="estadoDe(cita) === 'PendienteResultados'">
+        <h4>Nueva fecha de atención</h4>
+        <div class="drawer-hint">Cuando el paciente debe regresar por resultados o una nueva intervención, elija aquí la fecha de la próxima visita. Se conserva el mismo número de cita.</div>
+        <label>Nueva fecha y hora</label>
+        <input type="datetime-local" [(ngModel)]="bodyUpdate.reprogramacion!.nuevaFechaHoraInicio" />
+        <label>Motivo</label>
+        <input type="text" [(ngModel)]="bodyUpdate.reprogramacion!.motivo" placeholder="Motivo de la reprogramación" />
+        <label>Canal de notificación</label>
+        <select class="module-select full" [(ngModel)]="canalNotificacionReprogramacion">
+          <option *ngFor="let canal of canalesNotificacion" [value]="canal">{{ canal }}</option>
+        </select>
+        <div class="drawer-hint">
+          Destinatario de la simulación: <strong>{{ destinatarioReprogramacion || 'Sin destinatario registrado' }}</strong>
+        </div>
+        <div *ngIf="mensajeReprogramacion" class="info-banner">{{ mensajeReprogramacion }}</div>
+        <button class="btn-clinical ghost full" (click)="reprogramarCitaAgenda()">Guardar nueva fecha</button>
+      </div>
+
+      <div class="drawer-section" *ngIf="estadoDe(cita) === 'Concluida'">
+        <h4>Receta médica</h4>
+        <div class="receta-actions" *ngIf="recetaActivaCita; else emitirReceta">
+          <button class="btn-clinical ghost" (click)="verRecetaClinica()">Ver Receta</button>
+          <button class="btn-clinical primary" (click)="imprimirRecetaClinica()">Imprimir Receta</button>
+        </div>
+        <ng-template #emitirReceta>
+          <ng-container *ngIf="puedeEmitirReceta">
+            <input type="text" [(ngModel)]="bodyReceta.diagnostico" placeholder="Diagnóstico" />
+            <input type="text" [(ngModel)]="bodyReceta.indicaciones" placeholder="Indicaciones" />
+            <input type="text" [(ngModel)]="bodyReceta.tratamiento" placeholder="Tratamiento" />
+            <input type="text" [(ngModel)]="bodyReceta.observaciones" placeholder="Observaciones (opcional)" />
+            <button class="btn-clinical primary full" (click)="ejecutarEmitirReceta()">Emitir Receta</button>
+          </ng-container>
+        </ng-template>
+      </div>
+
+      <div class="drawer-section">
+        <h4>Historial asociado</h4>
+        <button class="btn-clinical ghost full" (click)="verHistorialClinico(cita)">Ver historial clínico del paciente</button>
+      </div>
+    </div>
+
+    <div class="drawer-footer" *ngIf="accionesCita.length">
+      <button class="btn-clinical danger" (click)="cancelarCitaAgenda()">Cancelar cita</button>
+    </div>
+  </ng-container>
+</aside>
+
+<!-- ======================= DRAWER DE PACIENTE ======================= -->
+<div class="drawer-backdrop" *ngIf="drawerPacienteAbierta" (click)="cerrarDrawerPaciente()"></div>
+<aside class="cita-drawer" *ngIf="drawerPacienteAbierta">
+  <div class="drawer-header">
+    <div>
+      <span class="drawer-eyebrow">Ficha de paciente</span>
+      <h2>{{ pacienteEditando.id ? 'Editar paciente' : 'Nuevo paciente' }}</h2>
+    </div>
+    <div class="drawer-header-actions">
+      <button class="drawer-back back-clinical" (click)="retroceder()" [title]="etiquetaRetroceso">
+        <span>Volver</span>
+      </button>
+      <button class="icon-button" (click)="cerrarDrawerPaciente()">×</button>
+    </div>
+  </div>
+
+  <div class="drawer-body">
+    <div *ngIf="mensajePaciente" class="info-banner">{{ mensajePaciente }}</div>
+
+    <div class="form-grid-clinical">
+      <div class="field">
+        <label class="field-label">Código</label>
+        <input class="module-input" [(ngModel)]="pacienteEditando.codigoPaciente" placeholder="PAC-0001" />
+      </div>
+      <div class="field">
+        <label class="field-label">Documento de identidad *</label>
+        <input class="module-input" [(ngModel)]="pacienteEditando.documento" placeholder="Documento" />
+      </div>
+      <div class="field">
+        <label class="field-label">Nombre *</label>
+        <input class="module-input" [(ngModel)]="pacienteEditando.nombre" placeholder="Nombre" />
+      </div>
+      <div class="field">
+        <label class="field-label">Apellido *</label>
+        <input class="module-input" [(ngModel)]="pacienteEditando.apellido" placeholder="Apellido" />
+      </div>
+      <div class="field">
+        <label class="field-label">Fecha de nacimiento</label>
+        <input class="module-input" type="date" [(ngModel)]="pacienteEditando.fechaNacimiento" />
+      </div>
+      <div class="field">
+        <label class="field-label">Teléfono</label>
+        <input class="module-input" [(ngModel)]="pacienteEditando.telefono" placeholder="Teléfono" />
+      </div>
+      <div class="field full">
+        <label class="field-label">Correo electrónico</label>
+        <input class="module-input" type="email" [(ngModel)]="pacienteEditando.correoElectronico" placeholder="correo@ejemplo.com" />
+      </div>
+    </div>
+
+    <div class="drawer-section hint-clinical">
+      <h4>Datos del contrato</h4>
+      <p>El backend recibe <code>Nombre</code>, <code>Apellido</code>, <code>DocumentoIdentidad</code>,
+        <code>FechaNacimiento</code> y <code>CodigoPaciente</code>. El formulario ensambla ese payload automáticamente.</p>
+    </div>
+  </div>
+
+  <div class="drawer-footer drawer-footer-actions">
+    <button class="btn-clinical danger" *ngIf="pacienteEditando.id" (click)="eliminarPacienteClinico()">Eliminar</button>
+    <button class="btn-clinical primary" (click)="guardarPacienteClinico()" [disabled]="guardandoPaciente">
+      {{ guardandoPaciente ? 'Guardando…' : 'Guardar paciente' }}
+    </button>
+  </div>
+</aside>
+
+<!-- ======================= DRAWER DE CREAR CITA ======================= -->
+<div class="drawer-backdrop" *ngIf="drawerNuevaCitaAbierta" (click)="cerrarNuevaCita()"></div>
+<aside class="cita-drawer nueva-cita-drawer" *ngIf="drawerNuevaCitaAbierta">
+  <div class="drawer-header">
+    <div>
+      <span class="drawer-eyebrow">Alta y agendamiento</span>
+      <h2>Crear cita</h2>
+    </div>
+    <div class="drawer-header-actions">
+      <button class="drawer-back back-clinical" (click)="retroceder()" [title]="etiquetaRetroceso">
+        <span>Volver</span>
+      </button>
+      <button class="icon-button" (click)="cerrarNuevaCita()" aria-label="Cerrar">×</button>
+    </div>
+  </div>
+
+  <div class="drawer-body">
+    <div *ngIf="mensajeNuevaCita" class="info-banner">{{ mensajeNuevaCita }}</div>
+
+    <div class="drawer-section">
+      <h4>1. Paciente</h4>
+      <div class="segmented">
+        <button type="button" [class.active]="pacienteCitaForm.modo === 'existente'" (click)="cambiarModoPaciente('existente')">Paciente existente</button>
+        <button type="button" [class.active]="pacienteCitaForm.modo === 'nuevo'" (click)="cambiarModoPaciente('nuevo')">Paciente nuevo</button>
+      </div>
+
+      <div *ngIf="pacienteCitaForm.modo === 'existente'" class="field-block">
+        <label class="field-label">Seleccione el paciente</label>
+        <select class="module-select full" [(ngModel)]="pacienteCitaForm.pacienteID">
+          <option [ngValue]="null">Seleccione un paciente</option>
+          <option *ngFor="let paciente of pacientesParaNuevaCita" [ngValue]="idPaciente(paciente)">
+            {{ paciente.nombreCompleto }} · {{ paciente.codigoPaciente }}
+          </option>
+        </select>
+      </div>
+
+      <div *ngIf="pacienteCitaForm.modo === 'nuevo'" class="form-grid-clinical drawer-form-grid">
+        <div class="field">
+          <label class="field-label">Nombre *</label>
+          <input class="module-input" [(ngModel)]="pacienteCitaForm.nombre" placeholder="Nombre" />
+        </div>
+        <div class="field">
+          <label class="field-label">Apellido *</label>
+          <input class="module-input" [(ngModel)]="pacienteCitaForm.apellido" placeholder="Apellido" />
+        </div>
+        <div class="field">
+          <label class="field-label">Documento *</label>
+          <input class="module-input" [(ngModel)]="pacienteCitaForm.documento" placeholder="Documento de identidad" />
+        </div>
+        <div class="field">
+          <label class="field-label">Fecha de nacimiento *</label>
+          <input class="module-input" type="date" [(ngModel)]="pacienteCitaForm.fechaNacimiento" />
+        </div>
+        <div class="field">
+          <label class="field-label">Teléfono</label>
+          <input class="module-input" [(ngModel)]="pacienteCitaForm.telefono" placeholder="Teléfono" />
+        </div>
+        <div class="field">
+          <label class="field-label">Correo electrónico</label>
+          <input class="module-input" type="email" [(ngModel)]="pacienteCitaForm.correoElectronico" placeholder="correo@ejemplo.com" />
+        </div>
+      </div>
+      <div class="drawer-hint" *ngIf="pacienteCitaForm.modo === 'nuevo'">
+        El paciente se guardará con los demás datos maestros y el backend le asignará su identificador y código automáticamente.
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <h4>2. Datos de la cita</h4>
+      <div class="form-grid-clinical drawer-form-grid">
+        <div class="field">
+          <label class="field-label">Especialidad</label>
+          <select class="module-select full" [(ngModel)]="nuevaCitaForm.especialidadID" (ngModelChange)="onEspecialidadNuevaCitaChange()">
+            <option *ngFor="let especialidad of especialidadesClinica" [ngValue]="especialidad.id">{{ especialidad.nombre }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Médico</label>
+          <select class="module-select full" [(ngModel)]="nuevaCitaForm.medicoID">
+            <option *ngFor="let medico of medicosPorEspecialidad" [ngValue]="medico.id">{{ medico.nombre }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Fecha</label>
+          <input class="module-input" type="date" [(ngModel)]="nuevaCitaForm.fecha" />
+        </div>
+        <div class="field">
+          <label class="field-label">Hora</label>
+          <input class="module-input" type="time" [(ngModel)]="nuevaCitaForm.hora" />
+        </div>
+        <div class="field full">
+          <label class="field-label">Motivo de la cita *</label>
+          <input class="module-input" [(ngModel)]="nuevaCitaForm.motivo" placeholder="Motivo de la consulta" />
+        </div>
+        <div class="field full">
+          <label class="field-label">Canal de notificación</label>
+          <select class="module-select full" [(ngModel)]="nuevaCitaForm.canalNotificacion">
+            <option *ngFor="let canal of canalesNotificacion" [value]="canal">{{ canal }}</option>
+          </select>
+          <div class="drawer-hint">
+            Al crear la cita se programará automáticamente el aviso con la fecha para:
+            <strong>{{ destinatarioNuevaCita || 'Sin destinatario registrado' }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer-section resultado-cita" *ngIf="resultadoNuevaCita as resultado">
+      <h4>Resultado</h4>
+      <dl>
+        <div><dt>Paciente</dt><dd>#{{ resultado.pacienteID }} · {{ resultado.codigoPaciente }}</dd></div>
+        <div><dt>Cita</dt><dd>#{{ resultado.citaID }}</dd></div>
+        <div><dt>Fecha</dt><dd>{{ formatearFechaCorta(resultado.fechaHora) }} · {{ formatearHora(resultado.fechaHora) }}</dd></div>
+        <div><dt>Notificación</dt><dd>{{ resultado.notificacionEnviada ? 'Programada' : 'Pendiente' }} · {{ resultado.detalleNotificacion }}</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="drawer-footer drawer-footer-actions">
+    <button class="btn-clinical ghost" (click)="cerrarNuevaCita()">Cancelar</button>
+    <button class="btn-clinical primary" (click)="crearCitaCompleta()" [disabled]="guardandoNuevaCita">
+      {{ guardandoNuevaCita ? 'Creando…' : 'Crear cita y notificar' }}
+    </button>
+  </div>
+</aside>
+    </main>
+  </div>
+</div>
+
+<!-- ===== CONSOLA API EXISTENTE (sin cambios funcionales) ===== -->
+<div class="dev-mode-layer" *ngIf="devMode">
+  <div class="dev-mode-banner">
+    <div class="dev-banner-copy"><strong>Modo desarrollador activo.</strong> Consola API original conservada.</div>
+    <button class="btn-dev-back" (click)="toggleDevMode(false)">Volver a la vista clínica</button>
+  </div>
+
 <div class="swagger-app-wrapper">
   <!-- Top Swagger-style Header -->
   <header class="swagger-header">
@@ -8,7 +1173,9 @@
           <h1>MedicalAppointments.Api &amp; Worker Services</h1>
           <div class="swagger-subtitle">
             <span class="version-tag">v1.0.0</span>
-            <span class="base-url">OAS 3.0 &bull; http://localhost:5000 &bull; http://localhost:5100</span>
+            <span class="base-url">
+              OAS 3.0 &bull; {{ baseUrls.citas }} &bull; {{ baseUrls.pacientes }} &bull; {{ baseUrls.recetas }} &bull; {{ baseUrls.reportes }} &bull; {{ baseUrls.notificaciones }}
+            </span>
           </div>
         </div>
       </div>
@@ -22,20 +1189,33 @@
   <main class="swagger-body">
     <div class="intro-description">
       <p>
-        Esta interfaz web implementa de forma interactiva <strong>todas las funciones expuestas en Swagger UI</strong> para los microservicios de <strong>Citas</strong>, <strong>Estados</strong> y <strong>Notificaciones (Worker Service)</strong>. Puedes ingresar parámetros, ejecutar peticiones HTTP directas y visualizar el código de estado y cuerpo de respuesta en tiempo real.
+        Interfaz interactiva estilo Swagger UI para los microservicios de <strong>Pacientes</strong>, <strong>Citas</strong>,
+        <strong>Recetas</strong>, <strong>Reportes/Dashboard</strong> y <strong>Notificaciones (Worker Service)</strong>.
+        Ingresa parámetros, ejecuta peticiones HTTP y visualiza el código de estado y la respuesta en tiempo real.
+        El flujo clínico de una cita evoluciona el mismo <code>CitaID</code> mediante <code>PUT</code>:
+        registro de atención secuencial, reprogramación en <em>PendienteResultados</em> y emisión de receta en <em>Concluida</em>.
       </p>
     </div>
 
     <!-- NAVEGACIÓN POR CONTROLADOR -->
     <div class="controller-tabs">
+      <button class="ctrl-tab" [class.active]="activeSection === 'pacientes'" (click)="activeSection = 'pacientes'">
+        👥 PacientesController
+      </button>
       <button class="ctrl-tab" [class.active]="activeSection === 'citas'" (click)="activeSection = 'citas'">
         📅 CitasController (6 endpoints)
       </button>
       <button class="ctrl-tab" [class.active]="activeSection === 'estados'" (click)="activeSection = 'estados'">
         🏷️ EstadosCitaController (2 endpoints)
       </button>
+      <button class="ctrl-tab" [class.active]="activeSection === 'recetas'" (click)="activeSection = 'recetas'">
+        📄 Recetas (consulta / historial / impresión)
+      </button>
+      <button class="ctrl-tab" [class.active]="activeSection === 'reportes'" (click)="activeSection = 'reportes'">
+        📊 Reportes / Dashboard
+      </button>
       <button class="ctrl-tab" [class.active]="activeSection === 'notificaciones'" (click)="activeSection = 'notificaciones'">
-        🔔 NotificacionesController (Worker Service - 3 endpoints)
+        🔔 NotificacionesController
       </button>
     </div>
 
@@ -45,7 +1225,7 @@
     <section *ngIf="activeSection === 'citas'" class="controller-block">
       <div class="controller-heading">
         <h2>Citas</h2>
-        <span class="controller-desc">Operaciones CRUD, consultas directas y paginación genérica sobre Cita</span>
+        <span class="controller-desc">CRUD, paginación y evolución del proceso clínico (UpdateCitaDto)</span>
       </div>
 
       <!-- 1. GET /api/Citas -->
@@ -53,15 +1233,14 @@
         <div class="endpoint-summary" (click)="toggleEndpoint('getCitas')">
           <span class="method get">GET</span>
           <span class="path">/api/Citas</span>
-          <span class="desc">Consulta el listado completo de citas</span>
+          <span class="desc">Listado de citas (GetCitaDto: estado, estadoNombre, medico, especialidad, fecha, hora)</span>
           <span class="toggle-icon">{{ endpointAbierto === 'getCitas' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'getCitas'" class="endpoint-content">
           <div class="action-bar">
             <button (click)="ejecutarGetAll()" class="btn-execute get">Ejecutar (Execute)</button>
+            <span *ngIf="respuestas['getAll']?.loading" class="loading-label">Cargando…</span>
           </div>
-
           <div *ngIf="respuestas['getAll']" class="response-panel">
             <div class="response-header">
               <span>Código HTTP: <strong>{{ respuestas['getAll'].status || 200 }} OK</strong></span>
@@ -76,10 +1255,9 @@
         <div class="endpoint-summary" (click)="toggleEndpoint('getPaged')">
           <span class="method get">GET</span>
           <span class="path">/api/Citas/paged</span>
-          <span class="desc">Consulta citas con paginacion generica y filtro dinamico (Nuget.Persistence)</span>
+          <span class="desc">Consulta citas con paginación genérica y filtro dinámico</span>
           <span class="toggle-icon">{{ endpointAbierto === 'getPaged' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'getPaged'" class="endpoint-content">
           <h4>Parámetros de consulta (Query Parameters)</h4>
           <div class="params-grid">
@@ -100,16 +1278,14 @@
               <input type="text" [(ngModel)]="paramsPaged.orderBy" placeholder="Ej: FechaHoraInicio asc" class="input-param" />
             </div>
           </div>
-
           <div class="action-bar">
             <button (click)="ejecutarGetPaged()" class="btn-execute get">Ejecutar (Execute)</button>
           </div>
-
           <div *ngIf="respuestas['getPaged']" class="response-panel">
             <div class="response-header">
               <span>Código HTTP: <strong>{{ respuestas['getPaged'].status }} OK</strong></span>
             </div>
-            <pre class="json-viewer">{{ respuestas['getPaged'].data | json }}</pre>
+            <pre class="json-viewer">{{ (respuestas['getPaged'].data || respuestas['getPaged'].error) | json }}</pre>
           </div>
         </div>
       </div>
@@ -119,21 +1295,21 @@
         <div class="endpoint-summary" (click)="toggleEndpoint('getById')">
           <span class="method get">GET</span>
           <span class="path">/api/Citas/&#123;id&#125;</span>
-          <span class="desc">Consulta una cita especifica por su identificador</span>
+          <span class="desc">Consulta una cita y precarga el formulario de actualización</span>
           <span class="toggle-icon">{{ endpointAbierto === 'getById' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'getById'" class="endpoint-content">
           <h4>Parámetros de ruta (Path Parameters)</h4>
           <div class="param-row-single">
             <label>id (long) *requerido</label>
             <input type="number" [(ngModel)]="paramGetById" class="input-param" />
           </div>
-
           <div class="action-bar">
             <button (click)="ejecutarGetById()" class="btn-execute get">Ejecutar (Execute)</button>
+            <button *ngIf="citaSeleccionada" (click)="verHistorial(idPaciente(citaSeleccionada))" class="btn-secondary">
+              Ver historial clínico del paciente
+            </button>
           </div>
-
           <div *ngIf="respuestas['getById']" class="response-panel">
             <div class="response-header">
               <span>Código HTTP: <strong>{{ respuestas['getById'].status }}</strong></span>
@@ -148,51 +1324,29 @@
         <div class="endpoint-summary" (click)="toggleEndpoint('postCita')">
           <span class="method post">POST</span>
           <span class="path">/api/Citas</span>
-          <span class="desc">Crea una nueva cita médica</span>
+          <span class="desc">Crea una nueva cita médica (solo cuando existe un motivo independiente)</span>
           <span class="toggle-icon">{{ endpointAbierto === 'postCita' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'postCita'" class="endpoint-content">
           <h4>Cuerpo de la petición (Request Body - JSON)</h4>
           <div class="form-grid-swagger">
+            <div><label>pacienteID *</label><input type="number" [(ngModel)]="bodyCreate.pacienteID" class="input-param" /></div>
+            <div><label>medicoID *</label><input type="number" [(ngModel)]="bodyCreate.medicoID" class="input-param" /></div>
+            <div><label>especialidadID</label><input type="number" [(ngModel)]="bodyCreate.especialidadID" class="input-param" /></div>
+            <div><label>consultorioID</label><input type="number" [(ngModel)]="bodyCreate.consultorioID" class="input-param" /></div>
             <div>
-              <label>pacienteID *</label>
-              <input type="number" [(ngModel)]="bodyCreate.pacienteID" class="input-param" />
+              <label>estadoCitaID (selector del catálogo)</label>
+              <select [(ngModel)]="bodyCreate.estadoCitaID" class="input-param">
+                <option *ngFor="let e of estados" [ngValue]="e.estadoCitaID">{{ e.nombre }}</option>
+              </select>
             </div>
-            <div>
-              <label>medicoID *</label>
-              <input type="number" [(ngModel)]="bodyCreate.medicoID" class="input-param" />
-            </div>
-            <div>
-              <label>especialidadID</label>
-              <input type="number" [(ngModel)]="bodyCreate.especialidadID" class="input-param" />
-            </div>
-            <div>
-              <label>consultorioID</label>
-              <input type="number" [(ngModel)]="bodyCreate.consultorioID" class="input-param" />
-            </div>
-            <div>
-              <label>estadoCitaID (1: Pendiente)</label>
-              <input type="number" [(ngModel)]="bodyCreate.estadoCitaID" class="input-param" />
-            </div>
-            <div>
-              <label>fechaHoraInicio *</label>
-              <input type="datetime-local" [(ngModel)]="bodyCreate.fechaHoraInicio" class="input-param" />
-            </div>
-            <div class="span-2">
-              <label>motivo (string)</label>
-              <input type="text" [(ngModel)]="bodyCreate.motivo" class="input-param" />
-            </div>
-            <div class="span-2">
-              <label>observaciones (string)</label>
-              <input type="text" [(ngModel)]="bodyCreate.observaciones" class="input-param" />
-            </div>
+            <div><label>fechaHoraInicio *</label><input type="datetime-local" [(ngModel)]="bodyCreate.fechaHoraInicio" class="input-param" /></div>
+            <div class="span-2"><label>motivo (string)</label><input type="text" [(ngModel)]="bodyCreate.motivo" class="input-param" /></div>
+            <div class="span-2"><label>observaciones (string)</label><input type="text" [(ngModel)]="bodyCreate.observaciones" class="input-param" /></div>
           </div>
-
           <div class="action-bar">
             <button (click)="ejecutarPostCita()" class="btn-execute post">Ejecutar (Execute)</button>
           </div>
-
           <div *ngIf="respuestas['postCita']" class="response-panel">
             <div class="response-header">
               <span>Código HTTP: <strong>{{ respuestas['postCita'].status }} Created</strong></span>
@@ -207,40 +1361,78 @@
         <div class="endpoint-summary" (click)="toggleEndpoint('putCita')">
           <span class="method put">PUT</span>
           <span class="path">/api/Citas/&#123;id&#125;</span>
-          <span class="desc">Actualiza los datos de una cita existente</span>
+          <span class="desc">Evoluciona el proceso clínico mediante UpdateCitaDto</span>
           <span class="toggle-icon">{{ endpointAbierto === 'putCita' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'putCita'" class="endpoint-content">
-          <h4>Parámetro de ruta (id) y cuerpo a actualizar</h4>
-          <div class="param-row-single mb-3">
-            <label>id (long) a modificar *</label>
-            <input type="number" [(ngModel)]="paramPutId" class="input-param" />
+          <h4>Parámetro de ruta y cuerpo a actualizar</h4>
+          <div class="params-grid">
+            <div class="param-row">
+              <label>id (long) a modificar *</label>
+              <input type="number" [(ngModel)]="paramPutId" class="input-param" />
+            </div>
+            <div class="param-row">
+              <label>Estado actual de la cita (GET /api/Citas/&#123;id&#125;)</label>
+              <select [(ngModel)]="estadoActualSeleccionado" class="input-param">
+                <option *ngFor="let e of estados" [ngValue]="e.codigo">{{ e.nombre }}</option>
+              </select>
+            </div>
+            <div class="param-row">
+              <label>estado (destino) * — selector</label>
+              <select [(ngModel)]="bodyUpdate.estado" (ngModelChange)="onEstadoCitaChange($event)" class="input-param">
+                <option *ngFor="let e of estados" [ngValue]="e.codigo">{{ e.nombre }}</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Registro de atención: obligatorio al salir de Agendada -->
+          <div *ngIf="requiereRegistroAtencion" class="conditional-form">
+            <h4>Registro de atención clínica *requerido al salir de Agendada</h4>
+            <div class="form-grid-swagger">
+              <div>
+                <label>secuencia (int) *</label>
+                <input type="number" min="1" [(ngModel)]="bodyUpdate.registroAtencion!.secuencia" class="input-param" />
+              </div>
+              <div>
+                <label>fechaAtencion (opcional)</label>
+                <input type="datetime-local" [(ngModel)]="bodyUpdate.registroAtencion!.fechaAtencion" class="input-param" />
+              </div>
+              <div class="span-2">
+                <label>observaciones (opcional)</label>
+                <input type="text" [(ngModel)]="bodyUpdate.registroAtencion!.observaciones" class="input-param" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Reprogramación: solo en PendienteResultados y manteniendo el estado -->
+          <div *ngIf="mostrarReprogramacion" class="conditional-form reprogramacion">
+            <h4>Reprogramación *solo PendienteResultados (el CitaID y el estado no cambian)</h4>
+            <div class="form-grid-swagger">
+              <div>
+                <label>nuevaFechaHoraInicio *</label>
+                <input type="datetime-local" [(ngModel)]="bodyUpdate.reprogramacion!.nuevaFechaHoraInicio" class="input-param" />
+              </div>
+              <div>
+                <label>nuevaFechaHoraFin (opcional)</label>
+                <input type="datetime-local" [(ngModel)]="bodyUpdate.reprogramacion!.nuevaFechaHoraFin" class="input-param" />
+              </div>
+              <div class="span-2">
+                <label>motivo *</label>
+                <input type="text" [(ngModel)]="bodyUpdate.reprogramacion!.motivo" class="input-param" />
+              </div>
+            </div>
           </div>
 
           <div class="form-grid-swagger">
-            <div>
-              <label>estadoCitaID (1: Pend, 2: Conf, 3: Aten, 4: Canc)</label>
-              <input type="number" [(ngModel)]="bodyUpdate.estadoCitaID" class="input-param" />
-            </div>
-            <div>
-              <label>fechaHoraInicio</label>
-              <input type="datetime-local" [(ngModel)]="bodyUpdate.fechaHoraInicio" class="input-param" />
-            </div>
-            <div class="span-2">
-              <label>motivo</label>
-              <input type="text" [(ngModel)]="bodyUpdate.motivo" class="input-param" />
-            </div>
-            <div class="span-2">
-              <label>observaciones</label>
-              <input type="text" [(ngModel)]="bodyUpdate.observaciones" class="input-param" />
-            </div>
+            <div><label>fechaHoraInicio</label><input type="datetime-local" [(ngModel)]="bodyUpdate.fechaHoraInicio" class="input-param" /></div>
+            <div><label>fechaHoraFin</label><input type="datetime-local" [(ngModel)]="bodyUpdate.fechaHoraFin" class="input-param" /></div>
+            <div class="span-2"><label>motivo</label><input type="text" [(ngModel)]="bodyUpdate.motivo" class="input-param" /></div>
+            <div class="span-2"><label>observaciones</label><input type="text" [(ngModel)]="bodyUpdate.observaciones" class="input-param" /></div>
           </div>
 
           <div class="action-bar">
             <button (click)="ejecutarPutCita()" class="btn-execute put">Ejecutar (Execute)</button>
           </div>
-
           <div *ngIf="respuestas['putCita']" class="response-panel">
             <div class="response-header">
               <span>Código HTTP: <strong>{{ respuestas['putCita'].status }}</strong></span>
@@ -250,26 +1442,87 @@
         </div>
       </div>
 
+      <!-- 5b. GET /api/RecetasMedicas/cita/{citaId}: fuente de verdad de receta activa -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getRecetaActivaCita'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getRecetaActivaCita')">
+          <span class="method get">GET</span>
+          <span class="path">/api/RecetasMedicas/cita/&#123;citaId&#125;</span>
+          <span class="desc">Receta activa de la cita (404 = sin receta, habilita emisión)</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getRecetaActivaCita' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getRecetaActivaCita'" class="endpoint-content">
+          <div class="param-row-single"><label>citaId (long) *</label><input type="number" [(ngModel)]="paramPutId" class="input-param" /></div>
+          <div class="action-bar">
+            <button (click)="ejecutarConsultarRecetaActivaCita()" class="btn-execute get">Ejecutar (Execute)</button>
+          </div>
+          <div *ngIf="respuestas['getRecetaActivaCita']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['getRecetaActivaCita'].status }}</strong></span>
+            </div>
+            <pre class="json-viewer">{{ (respuestas['getRecetaActivaCita'].data || respuestas['getRecetaActivaCita'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5c. POST /api/Citas/{citaId}/RecetasMedicas (emisión desde la cita) -->
+      <div class="endpoint-card post" [class.open]="endpointAbierto === 'emitirReceta'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('emitirReceta')">
+          <span class="method post">POST</span>
+          <span class="path">/api/Citas/&#123;citaId&#125;/RecetasMedicas</span>
+          <span class="desc">Emitir receta solo si la cita está Concluida y no tiene receta activa</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'emitirReceta' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'emitirReceta'" class="endpoint-content">
+          <p class="hint">
+            Cita seleccionada: <strong>#{{ paramPutId }}</strong> &bull; Estado actual: <strong>{{ estadoActualSeleccionado }}</strong>
+            &bull; Receta activa (GET /api/RecetasMedicas/cita/&#123;citaId&#125;):
+            <strong>{{ recetaActivaCita ? 'Sí (#' + idRecetaActiva + ')' : (recetaActivaConsultada ? 'No (404)' : 'Consultando…') }}</strong>
+          </p>
+          <ng-container *ngIf="puedeEmitirReceta; else recetaYaEmitida">
+            <div class="form-grid-swagger">
+              <div><label>diagnostico *</label><input type="text" [(ngModel)]="bodyReceta.diagnostico" class="input-param" /></div>
+              <div><label>indicaciones *</label><input type="text" [(ngModel)]="bodyReceta.indicaciones" class="input-param" /></div>
+              <div class="span-2"><label>tratamiento *</label><input type="text" [(ngModel)]="bodyReceta.tratamiento" class="input-param" /></div>
+              <div class="span-2"><label>observaciones (opcional)</label><input type="text" [(ngModel)]="bodyReceta.observaciones" class="input-param" /></div>
+            </div>
+            <div class="action-bar">
+              <button (click)="ejecutarEmitirReceta()" class="btn-execute post">Emitir Receta</button>
+            </div>
+          </ng-container>
+          <ng-template #recetaYaEmitida>
+            <p class="hint">La cita debe estar <strong>Concluida</strong> y sin receta activa para habilitar la emisión.</p>
+          </ng-template>
+
+          <div class="action-bar" *ngIf="idRecetaActiva as rid">
+            <button (click)="verRecetaDesdeCita()" class="btn-secondary">Ver Receta</button>
+            <button (click)="imprimirReceta(rid)" class="btn-secondary">Imprimir Receta</button>
+          </div>
+
+          <div *ngIf="respuestas['emitirReceta']" class="response-panel">
+            <div class="response-header">
+              <span>Código HTTP: <strong>{{ respuestas['emitirReceta'].status }} Created</strong></span>
+            </div>
+            <pre class="json-viewer">{{ (respuestas['emitirReceta'].data || respuestas['emitirReceta'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
       <!-- 6. DELETE /api/Citas/{id} -->
       <div class="endpoint-card delete" [class.open]="endpointAbierto === 'deleteCita'">
         <div class="endpoint-summary" (click)="toggleEndpoint('deleteCita')">
           <span class="method delete">DELETE</span>
           <span class="path">/api/Citas/&#123;id&#125;</span>
-          <span class="desc">Elimina una cita existente</span>
+          <span class="desc">Cancelación lógica conservando el CitaID y su historial clínico</span>
           <span class="toggle-icon">{{ endpointAbierto === 'deleteCita' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'deleteCita'" class="endpoint-content">
-          <h4>Parámetro de ruta</h4>
           <div class="param-row-single">
             <label>id (long) a eliminar *</label>
             <input type="number" [(ngModel)]="paramDeleteId" class="input-param" />
           </div>
-
           <div class="action-bar">
             <button (click)="ejecutarDeleteCita()" class="btn-execute delete">Ejecutar (Execute)</button>
           </div>
-
           <div *ngIf="respuestas['deleteCita']" class="response-panel">
             <div class="response-header">
               <span>Código HTTP: <strong>{{ respuestas['deleteCita'].status }}</strong></span>
@@ -286,55 +1539,46 @@
     <section *ngIf="activeSection === 'estados'" class="controller-block">
       <div class="controller-heading">
         <h2>EstadosCita</h2>
-        <span class="controller-desc">Catálogo de estados de citas (Pendiente, Confirmada, Atendida, Cancelada)</span>
+        <span class="controller-desc">Catálogo: Agendada (1), Citada (2), PendienteResultados (3), Concluida (4), Cancelada (5)</span>
       </div>
 
-      <!-- 7. GET /api/EstadosCita -->
       <div class="endpoint-card get" [class.open]="endpointAbierto === 'getEstados'">
         <div class="endpoint-summary" (click)="toggleEndpoint('getEstados')">
           <span class="method get">GET</span>
           <span class="path">/api/EstadosCita</span>
-          <span class="desc">Consulta el listado completo de estados de cita</span>
+          <span class="desc">Consulta el listado completo de estados</span>
           <span class="toggle-icon">{{ endpointAbierto === 'getEstados' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'getEstados'" class="endpoint-content">
           <div class="action-bar">
             <button (click)="ejecutarGetEstados()" class="btn-execute get">Ejecutar (Execute)</button>
           </div>
-
           <div *ngIf="respuestas['getEstados']" class="response-panel">
-            <div class="response-header">
-              <span>Código HTTP: <strong>{{ respuestas['getEstados'].status }} OK</strong></span>
-            </div>
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getEstados'].status }} OK</strong></span></div>
             <pre class="json-viewer">{{ respuestas['getEstados'].data | json }}</pre>
           </div>
         </div>
       </div>
 
-      <!-- 8. GET /api/EstadosCita/{id} -->
       <div class="endpoint-card get" [class.open]="endpointAbierto === 'getEstadoById'">
         <div class="endpoint-summary" (click)="toggleEndpoint('getEstadoById')">
           <span class="method get">GET</span>
           <span class="path">/api/EstadosCita/&#123;id&#125;</span>
-          <span class="desc">Consulta un estado de cita especifico por su identificador</span>
+          <span class="desc">Consulta un estado por su identificador</span>
           <span class="toggle-icon">{{ endpointAbierto === 'getEstadoById' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'getEstadoById'" class="endpoint-content">
           <div class="param-row-single">
             <label>id (int) del estado *</label>
-            <input type="number" [(ngModel)]="paramEstadoId" class="input-param" />
+            <select [(ngModel)]="paramEstadoId" class="input-param">
+              <option *ngFor="let e of estados" [ngValue]="e.estadoCitaID">{{ e.estadoCitaID }} - {{ e.nombre }}</option>
+            </select>
           </div>
-
           <div class="action-bar">
             <button (click)="ejecutarGetEstadoById()" class="btn-execute get">Ejecutar (Execute)</button>
           </div>
-
           <div *ngIf="respuestas['getEstadoById']" class="response-panel">
-            <div class="response-header">
-              <span>Código HTTP: <strong>{{ respuestas['getEstadoById'].status }}</strong></span>
-            </div>
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getEstadoById'].status }}</strong></span></div>
             <pre class="json-viewer">{{ (respuestas['getEstadoById'].data || respuestas['getEstadoById'].error) | json }}</pre>
           </div>
         </div>
@@ -342,94 +1586,614 @@
     </section>
 
     <!-- ========================================== -->
-    <!-- GRUPO 3: NOTIFICACIONES & WORKER SERVICE   -->
+    <!-- GRUPO 3: PACIENTES                        -->
+    <!-- ========================================== -->
+    <section *ngIf="activeSection === 'pacientes'" class="controller-block">
+      <div class="controller-heading">
+        <h2>Pacientes</h2>
+        <span class="controller-desc">Datos maestros del paciente y su historial clínico (microservicio en {{ baseUrls.pacientes }})</span>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getPacientes'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getPacientes')">
+          <span class="method get">GET</span><span class="path">/api/Pacientes</span>
+          <span class="desc">Listado completo de pacientes</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getPacientes' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getPacientes'" class="endpoint-content">
+          <div class="action-bar"><button (click)="ejecutarGetPacientes()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['getPacientes']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getPacientes'].status }} OK</strong></span></div>
+            <pre class="json-viewer">{{ respuestas['getPacientes'].data | json }}</pre>
+          </div>
+          <div class="data-list" *ngIf="resultadoPacientes.length">
+            <h4>Acciones rápidas por paciente</h4>
+            <div class="data-row" *ngFor="let p of resultadoPacientes">
+              <span>{{ p.nombreCompleto || 'Sin nombre' }} ({{ p.documento || '—' }})</span>
+              <button (click)="verHistorial(idPaciente(p))" class="btn-secondary">Ver historial clínico</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getPacienteById'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getPacienteById')">
+          <span class="method get">GET</span><span class="path">/api/Pacientes/&#123;id&#125;</span>
+          <span class="desc">Consulta un paciente por identificador</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getPacienteById' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getPacienteById'" class="endpoint-content">
+          <div class="param-row-single"><label>id (int) *</label><input type="number" [(ngModel)]="paramPacienteId" class="input-param" /></div>
+          <div class="action-bar">
+            <button (click)="ejecutarGetPacienteById()" class="btn-execute get">Ejecutar (Execute)</button>
+            <button (click)="verHistorial(paramPacienteId)" class="btn-secondary">Ver historial clínico</button>
+          </div>
+          <div *ngIf="respuestas['getPacienteById']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getPacienteById'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['getPacienteById'].data || respuestas['getPacienteById'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card post" [class.open]="endpointAbierto === 'postPaciente'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('postPaciente')">
+          <span class="method post">POST</span><span class="path">/api/Pacientes</span>
+          <span class="desc">Crea un paciente</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'postPaciente' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'postPaciente'" class="endpoint-content">
+          <div class="form-grid-swagger">
+            <div><label>codigoPaciente</label><input type="text" [(ngModel)]="bodyPaciente.codigoPaciente" class="input-param" /></div>
+            <div><label>nombreCompleto</label><input type="text" [(ngModel)]="bodyPaciente.nombreCompleto" class="input-param" /></div>
+            <div><label>documento</label><input type="text" [(ngModel)]="bodyPaciente.documento" class="input-param" /></div>
+            <div><label>correoElectronico</label><input type="text" [(ngModel)]="bodyPaciente.correoElectronico" class="input-param" /></div>
+            <div><label>telefono</label><input type="text" [(ngModel)]="bodyPaciente.telefono" class="input-param" /></div>
+            <div><label>fechaNacimiento</label><input type="date" [(ngModel)]="bodyPaciente.fechaNacimiento" class="input-param" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarPostPaciente()" class="btn-execute post">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['postPaciente']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['postPaciente'].status }} Created</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['postPaciente'].data || respuestas['postPaciente'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card put" [class.open]="endpointAbierto === 'putPaciente'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('putPaciente')">
+          <span class="method put">PUT</span><span class="path">/api/Pacientes/&#123;id&#125;</span>
+          <span class="desc">Actualiza un paciente</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'putPaciente' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'putPaciente'" class="endpoint-content">
+          <div class="param-row-single"><label>id (int) *</label><input type="number" [(ngModel)]="paramPutPacienteId" class="input-param" /></div>
+          <p class="hint">El cuerpo usa el mismo formulario de la tarjeta POST /api/Pacientes.</p>
+          <div class="action-bar"><button (click)="ejecutarPutPaciente()" class="btn-execute put">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['putPaciente']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['putPaciente'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['putPaciente'].data || respuestas['putPaciente'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card delete" [class.open]="endpointAbierto === 'deletePaciente'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('deletePaciente')">
+          <span class="method delete">DELETE</span><span class="path">/api/Pacientes/&#123;id&#125;</span>
+          <span class="desc">Elimina un paciente</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'deletePaciente' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'deletePaciente'" class="endpoint-content">
+          <div class="param-row-single"><label>id (int) *</label><input type="number" [(ngModel)]="paramDeletePacienteId" class="input-param" /></div>
+          <div class="action-bar"><button (click)="ejecutarDeletePaciente()" class="btn-execute delete">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['deletePaciente']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['deletePaciente'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['deletePaciente'].data || respuestas['deletePaciente'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getHistorialPaciente'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getHistorialPaciente')">
+          <span class="method get">GET</span><span class="path">/api/Pacientes/&#123;id&#125;/historial</span>
+          <span class="desc">Historial clínico completo del paciente</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getHistorialPaciente' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getHistorialPaciente'" class="endpoint-content">
+          <div class="param-row-single"><label>pacienteId (int) *</label><input type="number" [(ngModel)]="paramHistorialPacienteId" class="input-param" /></div>
+          <div class="action-bar"><button (click)="ejecutarGetHistorialPaciente()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['getHistorialPaciente']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getHistorialPaciente'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['getHistorialPaciente'].data || respuestas['getHistorialPaciente'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card post" [class.open]="endpointAbierto === 'postEventoHistorial'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('postEventoHistorial')">
+          <span class="method post">POST</span><span class="path">/api/Pacientes/&#123;id&#125;/historial/eventos</span>
+          <span class="desc">Registra un evento en el historial clínico</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'postEventoHistorial' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'postEventoHistorial'" class="endpoint-content">
+          <div class="param-row-single"><label>pacienteId (int) *</label><input type="number" [(ngModel)]="paramHistorialPacienteId" class="input-param" /></div>
+          <div class="form-grid-swagger">
+            <div>
+              <label>tipoEvento</label>
+              <select [(ngModel)]="bodyEventoHistorial.tipoEvento" class="input-param">
+                <option value="Consulta">Consulta</option>
+                <option value="Atencion">Atención</option>
+                <option value="Receta">Receta</option>
+                <option value="Resultado">Resultado</option>
+                <option value="Otro">Otro</option>
+              </select>
+            </div>
+            <div><label>fechaEvento</label><input type="datetime-local" [(ngModel)]="bodyEventoHistorial.fechaEvento" class="input-param" /></div>
+            <div class="span-2"><label>descripcion</label><input type="text" [(ngModel)]="bodyEventoHistorial.descripcion" class="input-param" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarPostEventoHistorial()" class="btn-execute post">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['postEventoHistorial']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['postEventoHistorial'].status }} Created</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['postEventoHistorial'].data || respuestas['postEventoHistorial'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- GRUPO 4: RECETAS (SOLO CONSULTA)           -->
+    <!-- ========================================== -->
+    <section *ngIf="activeSection === 'recetas'" class="controller-block">
+      <div class="controller-heading">
+        <h2>Recetas Médicas</h2>
+        <span class="controller-desc">Consulta, historial e impresión. La emisión se realiza únicamente desde una cita Concluida.</span>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getRecetas'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getRecetas')">
+          <span class="method get">GET</span><span class="path">/api/RecetasMedicas</span>
+          <span class="desc">Listado de recetas emitidas</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getRecetas' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getRecetas'" class="endpoint-content">
+          <div class="action-bar"><button (click)="ejecutarGetRecetas()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['getRecetas']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getRecetas'].status }} OK</strong></span></div>
+            <pre class="json-viewer">{{ respuestas['getRecetas'].data | json }}</pre>
+          </div>
+          <div class="data-list" *ngIf="resultadoRecetas.length">
+            <h4>Acciones por receta</h4>
+            <div class="data-row" *ngFor="let r of resultadoRecetas">
+              <span>Receta #{{ idReceta(r) || '—' }} &bull; Cita #{{ citaIdReceta(r) || '—' }} &bull; {{ r.diagnostico || '—' }}</span>
+              <span>
+                <button (click)="paramGetRecetaId = idReceta(r) || paramGetRecetaId; endpointAbierto = 'getRecetaById'; ejecutarGetRecetaById()" class="btn-secondary">Ver</button>
+                <button (click)="imprimirReceta(idReceta(r) || undefined)" class="btn-secondary">Imprimir</button>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getRecetaById'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getRecetaById')">
+          <span class="method get">GET</span><span class="path">/api/RecetasMedicas/&#123;id&#125;</span>
+          <span class="desc">Consulta una receta por identificador</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getRecetaById' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getRecetaById'" class="endpoint-content">
+          <div class="param-row-single"><label>id (int) *</label><input type="number" [(ngModel)]="paramGetRecetaId" class="input-param" /></div>
+          <div class="action-bar">
+            <button (click)="ejecutarGetRecetaById()" class="btn-execute get">Ejecutar (Execute)</button>
+            <button (click)="imprimirRecetaConsultada()" class="btn-secondary">Imprimir Receta</button>
+          </div>
+          <div *ngIf="respuestas['getRecetaById']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getRecetaById'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['getRecetaById'].data || respuestas['getRecetaById'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'historialRecetasPaciente'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('historialRecetasPaciente')">
+          <span class="method get">GET</span><span class="path">/api/RecetasMedicas/historial/paciente/&#123;pacienteId&#125;</span>
+          <span class="desc">Historial de recetas de un paciente</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'historialRecetasPaciente' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'historialRecetasPaciente'" class="endpoint-content">
+          <div class="param-row-single"><label>pacienteId (int) *</label><input type="number" [(ngModel)]="paramHistorialRecetasPacienteId" class="input-param" /></div>
+          <div class="action-bar"><button (click)="ejecutarHistorialRecetasPaciente()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['historialRecetasPaciente']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['historialRecetasPaciente'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['historialRecetasPaciente'].data || respuestas['historialRecetasPaciente'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getRecetasAnuladas'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getRecetasAnuladas')">
+          <span class="method get">GET</span><span class="path">/api/RecetasMedicas/anuladas</span>
+          <span class="desc">Recetas anuladas</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getRecetasAnuladas' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getRecetasAnuladas'" class="endpoint-content">
+          <div class="action-bar"><button (click)="ejecutarGetRecetasAnuladas()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['getRecetasAnuladas']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getRecetasAnuladas'].status }} OK</strong></span></div>
+            <pre class="json-viewer">{{ respuestas['getRecetasAnuladas'].data | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getRecetasPaged'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getRecetasPaged')">
+          <span class="method get">GET</span><span class="path">/api/RecetasMedicas/paged</span>
+          <span class="desc">Recetas con paginación, filtro y orden</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getRecetasPaged' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getRecetasPaged'" class="endpoint-content">
+          <div class="params-grid">
+            <div class="param-row"><label>pageNumber</label><input type="number" [(ngModel)]="paramsRecetasPaged.pageNumber" class="input-param" /></div>
+            <div class="param-row"><label>pageSize</label><input type="number" [(ngModel)]="paramsRecetasPaged.pageSize" class="input-param" /></div>
+            <div class="param-row"><label>pacienteId</label><input type="number" [(ngModel)]="paramsRecetasPaged.pacienteId" class="input-param" /></div>
+            <div class="param-row"><label>diagnóstico</label><input type="text" [(ngModel)]="paramsRecetasPaged.diagnostico" class="input-param" /></div>
+            <div class="param-row"><label>fechaDesde</label><input type="datetime-local" [(ngModel)]="paramsRecetasPaged.fechaDesde" class="input-param" /></div>
+            <div class="param-row"><label>fechaHasta</label><input type="datetime-local" [(ngModel)]="paramsRecetasPaged.fechaHasta" class="input-param" /></div>
+            <div class="param-row"><label>incluirAnuladas</label><input type="checkbox" [(ngModel)]="paramsRecetasPaged.incluirAnuladas" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarGetRecetasPaged()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['getRecetasPaged']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getRecetasPaged'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['getRecetasPaged'].data || respuestas['getRecetasPaged'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getRecetaImprimible'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getRecetaImprimible')">
+          <span class="method get">GET</span><span class="path">/api/RecetasMedicas/&#123;id&#125;/imprimible</span>
+          <span class="desc">Devuelve el HTML imprimible de la receta</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getRecetaImprimible' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getRecetaImprimible'" class="endpoint-content">
+          <div class="param-row-single"><label>id (int) *</label><input type="number" [(ngModel)]="paramGetRecetaId" class="input-param" /></div>
+          <div class="action-bar">
+            <button (click)="imprimirRecetaConsultada()" class="btn-secondary">Abrir e imprimir receta</button>
+          </div>
+          <p class="hint">Se abre en una pestaña nueva y se invoca <code>window.print()</code> al cargar.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- GRUPO 5: REPORTES / DASHBOARD              -->
+    <!-- ========================================== -->
+    <section *ngIf="activeSection === 'reportes'" class="controller-block">
+      <div class="controller-heading">
+        <h2>Reportes &amp; Dashboard</h2>
+        <span class="controller-desc">Indicadores globales y reportes filtrables (microservicio en {{ baseUrls.reportes }})</span>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getDashboard'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getDashboard')">
+          <span class="method get">GET</span><span class="path">/api/dashboard</span>
+          <span class="desc">Totales de pacientes, citas por estado, recetas, notificaciones y métricas del día</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getDashboard' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getDashboard'" class="endpoint-content">
+          <div class="action-bar"><button (click)="ejecutarGetDashboard()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="resultadoDashboard" class="metrics-grid">
+            <div class="metric"><span>Total Pacientes</span><strong>{{ resultadoDashboard.totalPacientes }}</strong></div>
+            <div class="metric"><span>Citas Agendadas</span><strong>{{ resultadoDashboard.citasAgendadas }}</strong></div>
+            <div class="metric"><span>Citas Citadas</span><strong>{{ resultadoDashboard.citasCitadas }}</strong></div>
+            <div class="metric"><span>Citas Pendiente Resultados</span><strong>{{ resultadoDashboard.citasPendienteResultados }}</strong></div>
+            <div class="metric"><span>Citas Concluidas</span><strong>{{ resultadoDashboard.citasConcluidas }}</strong></div>
+            <div class="metric"><span>Citas Canceladas</span><strong>{{ resultadoDashboard.citasCanceladas }}</strong></div>
+            <div class="metric"><span>Recetas Emitidas</span><strong>{{ resultadoDashboard.recetasEmitidas }}</strong></div>
+            <div class="metric"><span>Notificaciones Generadas</span><strong>{{ resultadoDashboard.notificacionesGeneradas }}</strong></div>
+            <div class="metric"><span>Citas Hoy</span><strong>{{ resultadoDashboard.citasHoy }}</strong></div>
+            <div class="metric"><span>Recetas Hoy</span><strong>{{ resultadoDashboard.recetasHoy }}</strong></div>
+            <div class="metric"><span>Notificaciones Hoy</span><strong>{{ resultadoDashboard.notificacionesHoy }}</strong></div>
+          </div>
+          <div *ngIf="respuestas['getDashboard']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getDashboard'].status }} OK</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['getDashboard'].data || respuestas['getDashboard'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'reportePacientes'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('reportePacientes')">
+          <span class="method get">GET</span><span class="path">/api/reportes/pacientes</span>
+          <span class="desc">Reporte de pacientes con rango de fechas y paginación</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'reportePacientes' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'reportePacientes'" class="endpoint-content">
+          <div class="params-grid">
+            <div class="param-row"><label>desde</label><input type="date" [(ngModel)]="filtrosReportePacientes.desde" class="input-param" /></div>
+            <div class="param-row"><label>hasta</label><input type="date" [(ngModel)]="filtrosReportePacientes.hasta" class="input-param" /></div>
+            <div class="param-row"><label>pageNumber</label><input type="number" [(ngModel)]="filtrosReportePacientes.pageNumber" class="input-param" /></div>
+            <div class="param-row"><label>pageSize</label><input type="number" [(ngModel)]="filtrosReportePacientes.pageSize" class="input-param" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarReporte('pacientes')" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['reportePacientes']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['reportePacientes'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['reportePacientes'].data || respuestas['reportePacientes'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'reporteCitas'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('reporteCitas')">
+          <span class="method get">GET</span><span class="path">/api/reportes/citas</span>
+          <span class="desc">Reporte de citas filtrable por estado (selector)</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'reporteCitas' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'reporteCitas'" class="endpoint-content">
+          <div class="params-grid">
+            <div class="param-row">
+              <label>estado</label>
+              <select [(ngModel)]="filtrosReporteCitas.estado" class="input-param">
+                <option value="">Todos</option>
+                <option *ngFor="let e of estados" [value]="e.codigo">{{ e.nombre }}</option>
+              </select>
+            </div>
+            <div class="param-row"><label>desde</label><input type="date" [(ngModel)]="filtrosReporteCitas.desde" class="input-param" /></div>
+            <div class="param-row"><label>hasta</label><input type="date" [(ngModel)]="filtrosReporteCitas.hasta" class="input-param" /></div>
+            <div class="param-row"><label>pageNumber</label><input type="number" [(ngModel)]="filtrosReporteCitas.pageNumber" class="input-param" /></div>
+            <div class="param-row"><label>pageSize</label><input type="number" [(ngModel)]="filtrosReporteCitas.pageSize" class="input-param" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarReporte('citas')" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['reporteCitas']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['reporteCitas'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['reporteCitas'].data || respuestas['reporteCitas'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'reporteRecetas'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('reporteRecetas')">
+          <span class="method get">GET</span><span class="path">/api/reportes/recetas</span>
+          <span class="desc">Reporte de recetas emitidas</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'reporteRecetas' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'reporteRecetas'" class="endpoint-content">
+          <div class="params-grid">
+            <div class="param-row"><label>desde</label><input type="date" [(ngModel)]="filtrosReporteRecetas.desde" class="input-param" /></div>
+            <div class="param-row"><label>hasta</label><input type="date" [(ngModel)]="filtrosReporteRecetas.hasta" class="input-param" /></div>
+            <div class="param-row"><label>pageNumber</label><input type="number" [(ngModel)]="filtrosReporteRecetas.pageNumber" class="input-param" /></div>
+            <div class="param-row"><label>pageSize</label><input type="number" [(ngModel)]="filtrosReporteRecetas.pageSize" class="input-param" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarReporte('recetas')" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['reporteRecetas']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['reporteRecetas'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['reporteRecetas'].data || respuestas['reporteRecetas'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'reporteNotificaciones'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('reporteNotificaciones')">
+          <span class="method get">GET</span><span class="path">/api/reportes/notificaciones</span>
+          <span class="desc">Reporte de notificaciones por estado y tipo (selectores)</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'reporteNotificaciones' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'reporteNotificaciones'" class="endpoint-content">
+          <div class="params-grid">
+            <div class="param-row">
+              <label>estado</label>
+              <select [(ngModel)]="filtrosReporteNotificaciones.estado" class="input-param">
+                <option value="">Todos</option>
+                <option *ngFor="let e of estadosNotificacion" [value]="e">{{ e }}</option>
+              </select>
+            </div>
+            <div class="param-row">
+              <label>tipo de notificación</label>
+              <select [(ngModel)]="filtrosReporteNotificaciones.tipo" class="input-param">
+                <option value="">Todos</option>
+                <option *ngFor="let t of tiposNotificacion" [value]="t">{{ t }}</option>
+              </select>
+            </div>
+            <div class="param-row"><label>desde</label><input type="date" [(ngModel)]="filtrosReporteNotificaciones.desde" class="input-param" /></div>
+            <div class="param-row"><label>hasta</label><input type="date" [(ngModel)]="filtrosReporteNotificaciones.hasta" class="input-param" /></div>
+            <div class="param-row"><label>pageNumber</label><input type="number" [(ngModel)]="filtrosReporteNotificaciones.pageNumber" class="input-param" /></div>
+            <div class="param-row"><label>pageSize</label><input type="number" [(ngModel)]="filtrosReporteNotificaciones.pageSize" class="input-param" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarReporte('notificaciones')" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['reporteNotificaciones']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['reporteNotificaciones'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['reporteNotificaciones'].data || respuestas['reporteNotificaciones'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- GRUPO 6: NOTIFICACIONES & WORKER SERVICE   -->
     <!-- ========================================== -->
     <section *ngIf="activeSection === 'notificaciones'" class="controller-block">
       <div class="controller-heading">
         <h2>Notificaciones &amp; Background Worker Service</h2>
-        <span class="controller-desc">Servicio en segundo plano (.NET 9) para sondeo de citas y recordatorios periódicos</span>
+        <span class="controller-desc">Servicio en segundo plano para recordatorios y reintentos ({{ baseUrls.notificaciones }})</span>
       </div>
 
-      <!-- 9. GET /api/Notificaciones -->
       <div class="endpoint-card get" [class.open]="endpointAbierto === 'getNotifs'">
         <div class="endpoint-summary" (click)="toggleEndpoint('getNotifs')">
-          <span class="method get">GET</span>
-          <span class="path">/api/Notificaciones</span>
-          <span class="desc">Consulta el historial de notificaciones y recordatorios despachados por el Worker</span>
+          <span class="method get">GET</span><span class="path">/api/Notificaciones</span>
+          <span class="desc">Historial de notificaciones despachadas por el Worker</span>
           <span class="toggle-icon">{{ endpointAbierto === 'getNotifs' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'getNotifs'" class="endpoint-content">
           <div class="params-grid">
             <div class="param-row">
-              <label>estado (opcional: Enviado / Pendiente)</label>
-              <input type="text" [(ngModel)]="paramFiltroEstadoNotif" class="input-param" placeholder="Enviado" />
+              <label>estado</label>
+              <select [(ngModel)]="paramFiltroEstadoNotif" class="input-param">
+                <option value="">Todos</option>
+                <option *ngFor="let e of estadosNotificacion" [value]="e">{{ e }}</option>
+              </select>
             </div>
             <div class="param-row">
-              <label>canal (opcional: WhatsApp / SMS / Email)</label>
-              <input type="text" [(ngModel)]="paramFiltroCanalNotif" class="input-param" placeholder="WhatsApp" />
+              <label>canal</label>
+              <select [(ngModel)]="paramFiltroCanalNotif" class="input-param">
+                <option value="">Todos</option>
+                <option *ngFor="let c of canalesNotificacion" [value]="c">{{ c }}</option>
+              </select>
             </div>
           </div>
-
-          <div class="action-bar">
-            <button (click)="ejecutarGetNotificaciones()" class="btn-execute get">Ejecutar (Execute)</button>
-          </div>
-
+          <div class="action-bar"><button (click)="ejecutarGetNotificaciones()" class="btn-execute get">Ejecutar (Execute)</button></div>
           <div *ngIf="respuestas['getNotificaciones']" class="response-panel">
-            <div class="response-header">
-              <span>Código HTTP: <strong>{{ respuestas['getNotificaciones'].status }} OK</strong></span>
-            </div>
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getNotificaciones'].status }} OK</strong></span></div>
             <pre class="json-viewer">{{ respuestas['getNotificaciones'].data | json }}</pre>
           </div>
         </div>
       </div>
 
-      <!-- 10. GET /api/Notificaciones/stats -->
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getNotificacionById'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getNotificacionById')">
+          <span class="method get">GET</span><span class="path">/api/Notificaciones/&#123;id&#125;</span>
+          <span class="desc">Consulta una notificación por id</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getNotificacionById' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getNotificacionById'" class="endpoint-content">
+          <div class="param-row-single"><label>id (long) *</label><input type="number" [(ngModel)]="paramGetNotifId" class="input-param" /></div>
+          <div class="action-bar"><button (click)="ejecutarGetNotificacionById()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['getNotificacionById']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getNotificacionById'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['getNotificacionById'].data || respuestas['getNotificacionById'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card get" [class.open]="endpointAbierto === 'getNotificacionesPaged'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('getNotificacionesPaged')">
+          <span class="method get">GET</span><span class="path">/api/Notificaciones/paged</span>
+          <span class="desc">Notificaciones paginadas</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'getNotificacionesPaged' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'getNotificacionesPaged'" class="endpoint-content">
+          <div class="params-grid">
+            <div class="param-row"><label>pageNumber</label><input type="number" [(ngModel)]="paramsNotifPaged.pageNumber" class="input-param" /></div>
+            <div class="param-row"><label>pageSize</label><input type="number" [(ngModel)]="paramsNotifPaged.pageSize" class="input-param" /></div>
+            <div class="param-row">
+              <label>estado</label>
+              <select [(ngModel)]="paramsNotifPaged.estado" class="input-param">
+                <option value="">Todos</option>
+                <option *ngFor="let e of estadosNotificacion" [value]="e">{{ e }}</option>
+              </select>
+            </div>
+            <div class="param-row">
+              <label>canal</label>
+              <select [(ngModel)]="paramsNotifPaged.canal" class="input-param">
+                <option value="">Todos</option>
+                <option *ngFor="let c of canalesNotificacion" [value]="c">{{ c }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarGetNotificacionesPaged()" class="btn-execute get">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['getNotificacionesPaged']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getNotificacionesPaged'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['getNotificacionesPaged'].data || respuestas['getNotificacionesPaged'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
       <div class="endpoint-card get" [class.open]="endpointAbierto === 'getStats'">
         <div class="endpoint-summary" (click)="toggleEndpoint('getStats')">
-          <span class="method get">GET</span>
-          <span class="path">/api/Notificaciones/stats</span>
-          <span class="desc">Devuelve metricas e indicadores de ausentismo y efectividad del Worker Service</span>
+          <span class="method get">GET</span><span class="path">/api/Notificaciones/stats</span>
+          <span class="desc">Métricas e indicadores de ausentismo y efectividad del Worker</span>
           <span class="toggle-icon">{{ endpointAbierto === 'getStats' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'getStats'" class="endpoint-content">
-          <div class="action-bar">
-            <button (click)="ejecutarGetStats()" class="btn-execute get">Ejecutar (Execute)</button>
-          </div>
-
+          <div class="action-bar"><button (click)="ejecutarGetStats()" class="btn-execute get">Ejecutar (Execute)</button></div>
           <div *ngIf="respuestas['getStats']" class="response-panel">
-            <div class="response-header">
-              <span>Código HTTP: <strong>{{ respuestas['getStats'].status }} OK</strong></span>
-            </div>
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['getStats'].status }} OK</strong></span></div>
             <pre class="json-viewer">{{ respuestas['getStats'].data | json }}</pre>
           </div>
         </div>
       </div>
 
-      <!-- 11. POST /api/Notificaciones/{id}/reintentar -->
+      <div class="endpoint-card post" [class.open]="endpointAbierto === 'postNotificacion'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('postNotificacion')">
+          <span class="method post">POST</span><span class="path">/api/Notificaciones</span>
+          <span class="desc">Crea manualmente una notificación de recordatorio</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'postNotificacion' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'postNotificacion'" class="endpoint-content">
+          <div class="form-grid-swagger">
+            <div><label>citaID</label><input type="number" [(ngModel)]="bodyNotificacion.citaID" class="input-param" /></div>
+            <div><label>pacienteID</label><input type="number" [(ngModel)]="bodyNotificacion.pacienteID" class="input-param" /></div>
+            <div><label>destinatario</label><input type="text" [(ngModel)]="bodyNotificacion.destinatario" class="input-param" /></div>
+            <div>
+              <label>canal</label>
+              <select [(ngModel)]="bodyNotificacion.canal" class="input-param">
+                <option *ngFor="let c of canalesNotificacion" [value]="c">{{ c }}</option>
+              </select>
+            </div>
+            <div>
+              <label>estado</label>
+              <select [(ngModel)]="bodyNotificacion.estado" class="input-param">
+                <option *ngFor="let e of estadosNotificacion" [value]="e">{{ e }}</option>
+              </select>
+            </div>
+            <div class="span-2"><label>mensaje</label><input type="text" [(ngModel)]="bodyNotificacion.mensaje" class="input-param" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarPostNotificacion()" class="btn-execute post">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['postNotificacion']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['postNotificacion'].status }} Created</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['postNotificacion'].data || respuestas['postNotificacion'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card put" [class.open]="endpointAbierto === 'putNotificacion'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('putNotificacion')">
+          <span class="method put">PUT</span><span class="path">/api/Notificaciones/&#123;id&#125;</span>
+          <span class="desc">Actualiza una notificación</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'putNotificacion' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'putNotificacion'" class="endpoint-content">
+          <div class="param-row-single"><label>id (long) *</label><input type="number" [(ngModel)]="paramPutNotifId" class="input-param" /></div>
+          <div class="form-grid-swagger">
+            <div>
+              <label>estado</label>
+              <select [(ngModel)]="bodyNotificacion.estado" class="input-param">
+                <option *ngFor="let e of estadosNotificacion" [value]="e">{{ e }}</option>
+              </select>
+            </div>
+            <div class="span-2"><label>mensaje</label><input type="text" [(ngModel)]="bodyNotificacion.mensaje" class="input-param" /></div>
+          </div>
+          <div class="action-bar"><button (click)="ejecutarPutNotificacion()" class="btn-execute put">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['putNotificacion']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['putNotificacion'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['putNotificacion'].data || respuestas['putNotificacion'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="endpoint-card delete" [class.open]="endpointAbierto === 'deleteNotificacion'">
+        <div class="endpoint-summary" (click)="toggleEndpoint('deleteNotificacion')">
+          <span class="method delete">DELETE</span><span class="path">/api/Notificaciones/&#123;id&#125;</span>
+          <span class="desc">Elimina una notificación</span>
+          <span class="toggle-icon">{{ endpointAbierto === 'deleteNotificacion' ? '▲' : '▼' }}</span>
+        </div>
+        <div *ngIf="endpointAbierto === 'deleteNotificacion'" class="endpoint-content">
+          <div class="param-row-single"><label>id (long) *</label><input type="number" [(ngModel)]="paramDeleteNotifId" class="input-param" /></div>
+          <div class="action-bar"><button (click)="ejecutarDeleteNotificacion()" class="btn-execute delete">Ejecutar (Execute)</button></div>
+          <div *ngIf="respuestas['deleteNotificacion']" class="response-panel">
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['deleteNotificacion'].status }}</strong></span></div>
+            <pre class="json-viewer">{{ (respuestas['deleteNotificacion'].data || respuestas['deleteNotificacion'].error) | json }}</pre>
+          </div>
+        </div>
+      </div>
+
       <div class="endpoint-card post" [class.open]="endpointAbierto === 'reintentar'">
         <div class="endpoint-summary" (click)="toggleEndpoint('reintentar')">
-          <span class="method post">POST</span>
-          <span class="path">/api/Notificaciones/&#123;id&#125;/reintentar</span>
+          <span class="method post">POST</span><span class="path">/api/Notificaciones/&#123;id&#125;/reintentar</span>
           <span class="desc">Fuerza el reintento de despacho de una notificación</span>
           <span class="toggle-icon">{{ endpointAbierto === 'reintentar' ? '▲' : '▼' }}</span>
         </div>
-
         <div *ngIf="endpointAbierto === 'reintentar'" class="endpoint-content">
-          <div class="param-row-single">
-            <label>id (long) de la notificación *</label>
-            <input type="number" [(ngModel)]="paramReintentarNotifId" class="input-param" />
-          </div>
-
-          <div class="action-bar">
-            <button (click)="ejecutarReintentarNotificacion()" class="btn-execute post">Ejecutar (Execute)</button>
-          </div>
-
+          <div class="param-row-single"><label>id (long) de la notificación *</label><input type="number" [(ngModel)]="paramReintentarNotifId" class="input-param" /></div>
+          <div class="action-bar"><button (click)="ejecutarReintentarNotificacion()" class="btn-execute post">Ejecutar (Execute)</button></div>
           <div *ngIf="respuestas['reintentarNotif']" class="response-panel">
-            <div class="response-header">
-              <span>Código HTTP: <strong>{{ respuestas['reintentarNotif'].status }} OK</strong></span>
-            </div>
+            <div class="response-header"><span>Código HTTP: <strong>{{ respuestas['reintentarNotif'].status }} OK</strong></span></div>
             <pre class="json-viewer">{{ (respuestas['reintentarNotif'].data || respuestas['reintentarNotif'].error) | json }}</pre>
           </div>
         </div>
@@ -437,4 +2201,5 @@
     </section>
 
   </main>
+</div>
 </div>

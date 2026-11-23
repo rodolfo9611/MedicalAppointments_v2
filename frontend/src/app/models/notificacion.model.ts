@@ -10,9 +10,24 @@ export interface Notificacion {
   fechaRegistro: string;
   fechaEnvio?: string;
   estado: string;
+  tipoNotificacion?: string;
+  tipo?: string;
+  leida?: boolean;
+  fechaActualizacion?: string;
   intentos: number;
   detalleRespuesta?: string;
 }
+
+/** Valores usados en los selectores de filtros (evita texto libre). */
+export const ESTADOS_NOTIFICACION: string[] = ['Pendiente', 'Enviado', 'Fallido'];
+export const CANALES_NOTIFICACION: string[] = ['WhatsApp', 'SMS', 'Email'];
+export const TIPOS_NOTIFICACION: string[] = [
+  'Recordatorio',
+  'Confirmacion',
+  'Reprogramacion',
+  'Resultado',
+  'Cancelacion'
+];
 
 export interface StatsResponse {
   totalNotificaciones: number;

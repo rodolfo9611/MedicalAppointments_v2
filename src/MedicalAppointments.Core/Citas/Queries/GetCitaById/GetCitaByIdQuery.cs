@@ -1,6 +1,6 @@
 ﻿using MediatR;
-using MedicalAppointments.Domain.Citas.Entities;
+using MedicalAppointments.Core.Citas.DTOs;
 
 namespace MedicalAppointments.Core.Citas.Queries.GetCitaById;
 
-public record GetCitaByIdQuery(long CitaID) : IRequest<Cita?>;  
+public record GetCitaByIdQuery(long CitaID) : IRequest<GetCitaDto?>;

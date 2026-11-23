@@ -1,6 +1,10 @@
+using System.Globalization;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using MedicalAppointments.Notifications.Application.Integration;
 using MedicalAppointments.Notifications.Domain.Entities;
+using MedicalAppointments.Notifications.Domain.Enums;
 using MedicalAppointments.Notifications.Domain.Interfaces;
 using MedicalAppointments.Notifications.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
@@ -17,17 +21,20 @@ public class NotificationWorker : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
+    private readonly INotificacionHistorialReporter _historialReporter;
 
     public NotificationWorker(
         ILogger<NotificationWorker> logger,
         IServiceScopeFactory scopeFactory,
         IHttpClientFactory httpClientFactory,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        INotificacionHistorialReporter historialReporter)
     {
         _logger = logger;
         _scopeFactory = scopeFactory;
         _httpClientFactory = httpClientFactory;
         _configuration = configuration;
+        _historialReporter = historialReporter;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -106,7 +113,14 @@ public class NotificationWorker : BackgroundService
             var existentes = await repo.GetByCitaIdAsync(cita.CitaID);
             if (existentes.Any())
             {
-                continue; // Ya tiene recordatorio generado
+                continue; // Ya tiene notificación generada
+            }
+
+            if (EsCancelada(cita))
+            {
+                _logger.LogInformation(
+                    "⏭️ [NotificationWorker] Cita #{CitaID} cancelada; no se genera notificación.", cita.CitaID);
+                continue;
             }
 
             // Seleccionar canal y plantilla según regla de negocio
@@ -117,28 +131,87 @@ public class NotificationWorker : BackgroundService
                 _ => "Email"
             };
 
+            var paciente = await ObtenerPacienteAsync(cita.PacienteID, stoppingToken);
+            var nombrePaciente = paciente?.NombreCompleto ?? $"Paciente #{cita.PacienteID}";
+
             var destinatario = canal switch
             {
-                "Email" => $"paciente{cita.PacienteID}@correo-clinica.com",
-                _ => $"+503 7{cita.PacienteID:D3}-{(cita.CitaID * 111) % 10000:D4}"
+                "Email" => !string.IsNullOrWhiteSpace(paciente?.CorreoElectronico)
+                    ? paciente!.CorreoElectronico!
+                    : $"paciente{cita.PacienteID}@correo-clinica.com",
+                _ => !string.IsNullOrWhiteSpace(paciente?.Telefono)
+                    ? paciente!.Telefono!
+                    : $"+503 7{cita.PacienteID:D3}-{(cita.CitaID * 111) % 10000:D4}"
             };
+
+            var profesionales = new List<string>();
+            if (!string.IsNullOrWhiteSpace(cita.NombreMedico))
+                profesionales.Add(cita.NombreMedico!.Trim());
+            if (!string.IsNullOrWhiteSpace(cita.Especialidad))
+                profesionales.Add(cita.Especialidad!.Trim());
+
+            var detalleProfesional = profesionales.Count > 0
+                ? $" con {string.Join(" - ", profesionales)}"
+                : string.Empty;
 
             var nuevaNotificacion = new Notificacion
             {
                 CitaID = cita.CitaID,
                 PacienteID = cita.PacienteID,
-                PacienteNombre = $"Paciente #{cita.PacienteID}",
+                PacienteNombre = nombrePaciente,
                 Canal = canal,
                 Destinatario = destinatario,
                 FechaProgramadaCita = cita.FechaHoraInicio,
                 FechaRegistro = DateTime.UtcNow,
                 Estado = "Pendiente",
                 Intentos = 0,
-                Mensaje = $"Estimado paciente #{cita.PacienteID}, le recordamos su cita médica el {cita.FechaHoraInicio:dd/MM/yyyy HH:mm} en la clínica. Motivo: {cita.Motivo ?? "Consulta de Control"}."
+                TipoNotificacion = TipoNotificacionEnum.RecordatorioCita,
+                Mensaje = $"Estimado {nombrePaciente}, le recordamos su cita médica el {cita.FechaHoraInicio:dd/MM/yyyy HH:mm} en la clínica{detalleProfesional}. Motivo: {cita.Motivo ?? "Consulta de Control"}."
             };
 
             await repo.AddAsync(nuevaNotificacion);
             _logger.LogInformation("📝 [NotificationWorker] Creada notificación pendiente para Cita #{CitaID} (Canal: {Canal})", cita.CitaID, canal);
+        }
+    }
+
+    private async Task<PacienteInfo?> ObtenerPacienteAsync(long pacienteId, CancellationToken stoppingToken)
+    {
+        var pacientesApiUrl = _configuration["ApiUrls:Pacientes"] ?? "http://localhost:5015";
+
+        try
+        {
+            using var client = _httpClientFactory.CreateClient("PacientesClient");
+            client.BaseAddress = new Uri(pacientesApiUrl);
+            client.Timeout = TimeSpan.FromSeconds(5);
+
+            var paciente = await client.GetFromJsonAsync<PacienteDto>(
+                $"api/Pacientes/{pacienteId}",
+                cancellationToken: stoppingToken);
+
+            if (paciente is null)
+                return null;
+
+            var nombre = paciente.NombreCompleto;
+            if (string.IsNullOrWhiteSpace(nombre))
+            {
+                var partes = new[] { paciente.Nombre, paciente.Apellido }
+                    .Where(p => !string.IsNullOrWhiteSpace(p))
+                    .Select(p => p!.Trim())
+                    .ToArray();
+
+                nombre = partes.Length > 0 ? string.Join(" ", partes) : null;
+            }
+
+            return new PacienteInfo(nombre, paciente.CorreoElectronico, paciente.Telefono);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                "⚠️ [NotificationWorker] No se pudo consultar Pacientes ({Url}) para el paciente #{PacienteID}: {Error}. Se usa el nombre genérico.",
+                pacientesApiUrl,
+                pacienteId,
+                ex.Message);
+            return null;
         }
     }
 
@@ -169,11 +242,18 @@ public class NotificationWorker : BackgroundService
             notif.DetalleRespuesta = $"Despachado exitosamente a través de Pasarela {notif.Canal}. Código de rastreo: ACK-{Guid.NewGuid().ToString()[..8].ToUpper()}";
 
             await repo.UpdateAsync(notif);
+            await _historialReporter.ReportarEnvioAsync(notif.ToEnviadaEvent(), stoppingToken);
 
             _logger.LogInformation("✅ [NotificationWorker] ENVIADO recordatorio Cita #{CitaID} a {Destinatario} ({Canal}).", 
                 notif.CitaID, notif.Destinatario, notif.Canal);
         }
     }
+
+    private static bool EsCancelada(CitaDto cita)
+        => cita.EstadoCitaID == 5 ||
+           string.Equals(cita.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase);
+
+    private sealed record PacienteInfo(string? NombreCompleto, string? CorreoElectronico, string? Telefono);
 }
 
 public class CitaDto
@@ -182,7 +262,47 @@ public class CitaDto
     public long PacienteID { get; set; }
     public int MedicoID { get; set; }
     public int EstadoCitaID { get; set; }
+
+    /// <summary>Estado textual devuelto por la API de Citas (por ejemplo, "Cancelada").</summary>
+    [JsonConverter(typeof(FlexibleStringConverter))]
+    public string? Estado { get; set; }
+
     public DateTime FechaHoraInicio { get; set; }
     public DateTime? FechaHoraFin { get; set; }
     public string? Motivo { get; set; }
+    public string? NombreMedico { get; set; }
+    public string? Especialidad { get; set; }
+}
+
+public class PacienteDto
+{
+    public long PacienteID { get; set; }
+    public string? NombreCompleto { get; set; }
+    public string? CorreoElectronico { get; set; }
+    public string? Telefono { get; set; }
+    public string? Nombre { get; set; }
+    public string? Apellido { get; set; }
+}
+
+/// <summary>
+/// Acepta estados serializados como cadena o como número.
+/// </summary>
+public sealed class FlexibleStringConverter : JsonConverter<string?>
+{
+    public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        => reader.TokenType switch
+        {
+            JsonTokenType.String => reader.GetString(),
+            JsonTokenType.Number => reader.GetDecimal().ToString(CultureInfo.InvariantCulture),
+            JsonTokenType.Null => null,
+            _ => null
+        };
+
+    public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options)
+    {
+        if (value is null)
+            writer.WriteNullValue();
+        else
+            writer.WriteStringValue(value);
+    }
 }

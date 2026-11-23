@@ -36,21 +36,7 @@ public class GetCitasPagedQueryHandler : IRequestHandler<GetCitasPagedQuery, Htt
                 splitQuery: false,
                 cancellationToken: cancellationToken);
 
-            var data = result.Data.Select(c => new GetCitaDto
-            {
-                CitaID = c.CitaID,
-                PacienteID = c.PacienteID,
-                MedicoID = c.MedicoID,
-                EspecialidadID = c.EspecialidadID,
-                ConsultorioID = c.ConsultorioID,
-                EstadoCitaID = c.EstadoCitaID,
-                FechaHoraInicio = c.FechaHoraInicio,
-                FechaHoraFin = c.FechaHoraFin,
-                Motivo = c.Motivo,
-                Observaciones = c.Observaciones,
-                UsuarioCreacionID = c.UsuarioCreacionID,
-                FechaCreacion = c.FechaCreacion
-            }).ToList();
+            var data = result.Data.Select(c => c.ToDto()).ToList();
 
             return new HttpResponse<PagedDto<List<GetCitaDto>>>
             {

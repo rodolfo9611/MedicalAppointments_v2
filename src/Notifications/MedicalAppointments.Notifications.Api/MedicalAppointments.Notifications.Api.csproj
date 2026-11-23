@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <ProjectReference Include="..\MedicalAppointments.Notifications.Application\MedicalAppointments.Notifications.Application.csproj" />
     <ProjectReference Include="..\MedicalAppointments.Notifications.Domain\MedicalAppointments.Notifications.Domain.csproj" />
     <ProjectReference Include="..\MedicalAppointments.Notifications.Persistence\MedicalAppointments.Notifications.Persistence.csproj" />
     <ProjectReference Include="..\MedicalAppointments.Notifications.Worker\MedicalAppointments.Notifications.Worker.csproj" />
@@ -14,6 +15,8 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);1591</NoWarn>
   </PropertyGroup>
 
 </Project>
