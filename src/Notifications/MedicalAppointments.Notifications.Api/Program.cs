@@ -4,8 +4,10 @@ using MediatR;
 using MedicalAppointments.Notifications.Api.Swagger;
 using MedicalAppointments.Notifications.Application.Integration;
 using MedicalAppointments.Notifications.Application.Queries.GetNotificacionesPaged;
+using MedicalAppointments.Notifications.Persistence.Context;
 using MedicalAppointments.Notifications.Persistence.Extensions;
 using MedicalAppointments.Notifications.Worker;
+using Nuget.Persistence.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -46,6 +48,8 @@ builder.Services.AddSingleton<INotificacionHistorialReporter, NotificacionHistor
 builder.Services.AddHostedService<NotificationWorker>();
 
 var app = builder.Build();
+
+await app.Services.InitializeConfiguredDatabaseAsync<NotificationsDbContext>();
 
 app.UseCors("AllowAll");
 

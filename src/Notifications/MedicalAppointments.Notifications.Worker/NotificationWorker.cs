@@ -9,6 +9,7 @@ using MedicalAppointments.Notifications.Domain.Interfaces;
 using MedicalAppointments.Notifications.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Nuget.Persistence.Extensions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -47,7 +48,7 @@ public class NotificationWorker : BackgroundService
             var dbContext = initialScope.ServiceProvider.GetRequiredService<NotificationsDbContext>();
             try
             {
-                await dbContext.Database.EnsureCreatedAsync(stoppingToken);
+                await dbContext.EnsureModelTablesAsync(stoppingToken);
                 _logger.LogInformation("✅ [NotificationWorker] Base de datos y tablas de Notificaciones verificadas.");
             }
             catch (Exception ex)

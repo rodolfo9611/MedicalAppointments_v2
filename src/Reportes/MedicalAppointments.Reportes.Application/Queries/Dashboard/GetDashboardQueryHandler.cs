@@ -37,9 +37,13 @@ public sealed class GetDashboardQueryHandler : IRequestHandler<GetDashboardQuery
     /// <inheritdoc />
     public async Task<DashboardDto> Handle(GetDashboardQuery request, CancellationToken cancellationToken)
     {
+        // Las citas guardan fechas locales; recetas y notificaciones guardan UTC.
+        // Comparar todo contra DateTime.Today deja esos KPIs en cero cuando la zona
+        // horaria local va detrás de UTC y ya pasó la medianoche UTC.
         var hoy = DateTime.Today;
         var finHoyExclusivo = hoy.AddDays(1);
-        var finHoyInclusivo = finHoyExclusivo.AddSeconds(-1);
+        var hoyUtc = DateTime.UtcNow.Date;
+        var finHoyUtcInclusivo = hoyUtc.AddDays(1).AddSeconds(-1);
 
         var totalPacientes = await SafeAsync(
             () => _pacientesClient.CountAsync(cancellationToken),
@@ -76,8 +80,8 @@ public sealed class GetDashboardQueryHandler : IRequestHandler<GetDashboardQuery
         var recetasHoy = await SafeAsync(
             () => _recetasClient.CountAsync(new RecetaFilterRequest
             {
-                FechaDesde = hoy,
-                FechaHasta = finHoyInclusivo,
+                FechaDesde = hoyUtc,
+                FechaHasta = finHoyUtcInclusivo,
                 IncluirAnuladas = false
             }, cancellationToken),
             nameof(DashboardDto.RecetasHoy), 0, cancellationToken);
@@ -93,8 +97,8 @@ public sealed class GetDashboardQueryHandler : IRequestHandler<GetDashboardQuery
         var notificacionesHoy = await SafeAsync(
             () => _notificacionesClient.CountAsync(new NotificacionFilterRequest
             {
-                FechaDesde = hoy,
-                FechaHasta = finHoyInclusivo
+                FechaDesde = hoyUtc,
+                FechaHasta = finHoyUtcInclusivo
             }, cancellationToken),
             nameof(DashboardDto.NotificacionesHoy), 0, cancellationToken);
 
